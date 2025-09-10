@@ -1,209 +1,298 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { BookOpen, Zap, Brain, Lightbulb, Sparkles, FileText } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { BookOpen, Zap, Brain, Lightbulb, Sparkles, FileText, ArrowUp } from "lucide-react";
+
+interface Message {
+  id: number;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  task?: string;
+  isProcessing?: boolean;
+  isError?: boolean;
+}
+
+interface Option {
+  label: string;
+  task: string;
+  icon: any;
+  gradient: string;
+  description: string;
+}
 
 export default function Home() {
-  const [text, setText] = useState("");
-  const [task, setTask] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [output, setOutput] = useState("");
-  const [mounted, setMounted] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputText, setInputText] = useState<string>("");
+  const [showOptions, setShowOptions] = useState<boolean>(false);
+  const [currentText, setCurrentText] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setMounted(true);
+    // Add welcome message
+    setMessages([
+      {
+        id: 1,
+        type: 'assistant',
+        content: 'Hi! I\'m StudyMind AI. Paste your course material, notes, or any text you want to study, and I\'ll help you learn it better! ✨',
+        timestamp: new Date()
+      }
+    ]);
   }, []);
 
-  const handleGenerate = async (t: string) => {
-    setTask(t);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleSend = () => {
+    if (!inputText.trim()) return;
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now(),
+      type: 'user',
+      content: inputText,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setCurrentText(inputText);
+    setInputText("");
+    
+    // Show animated options
+    setTimeout(() => {
+      setShowOptions(true);
+    }, 500);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleOptionSelect = async (task: string, label: string) => {
+    setShowOptions(false);
     setLoading(true);
-    setOutput("");
+
+    // Add assistant message indicating processing
+    const processingMessage: Message = {
+      id: Date.now(),
+      type: 'assistant',
+      content: `Creating your ${label.toLowerCase()}...`,
+      timestamp: new Date(),
+      isProcessing: true
+    };
+
+    setMessages(prev => [...prev, processingMessage]);
 
     try {
       const res = await fetch("http://127.0.0.1:5000/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, task: t }),
+        body: JSON.stringify({ text: currentText, task }),
       });
       const data = await res.json();
-      if (data.output) setOutput(data.output);
-      else setOutput("Error: " + JSON.stringify(data));
+      
+      const resultMessage: Message = {
+        id: Date.now() + 1,
+        type: 'assistant',
+        content: data.output || "Error: " + JSON.stringify(data),
+        timestamp: new Date(),
+        task: label
+      };
+
+      // Replace processing message with result
+      setMessages(prev => prev.filter(msg => !msg.isProcessing).concat([resultMessage]));
     } catch (err) {
-      setOutput("Request failed: " + err);
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        type: 'assistant',
+        content: "Request failed: " + String(err),
+        timestamp: new Date(),
+        isError: true
+      };
+      
+      setMessages(prev => prev.filter(msg => !msg.isProcessing).concat([errorMessage]));
     } finally {
       setLoading(false);
     }
   };
 
-  const buttons = [
+  const options: Option[] = [
     {
       label: "Summarize",
       task: "summarize",
       icon: FileText,
-      gradient: "from-blue-500 via-blue-600 to-indigo-700",
-      hoverGradient: "hover:from-blue-400 hover:via-blue-500 hover:to-indigo-600",
-      shadow: "shadow-blue-500/25",
+      gradient: "from-blue-500 to-indigo-600",
+      description: "Get key points and main ideas"
     },
     {
       label: "Quiz Me",
       task: "quiz",
       icon: Brain,
-      gradient: "from-emerald-500 via-green-600 to-teal-700",
-      hoverGradient: "hover:from-emerald-400 hover:via-green-500 hover:to-teal-600",
-      shadow: "shadow-emerald-500/25",
+      gradient: "from-emerald-500 to-teal-600",
+      description: "Test your knowledge"
     },
     {
       label: "Flashcards",
       task: "flashcards",
       icon: Zap,
-      gradient: "from-purple-500 via-violet-600 to-purple-700",
-      hoverGradient: "hover:from-purple-400 hover:via-violet-500 hover:to-purple-600",
-      shadow: "shadow-purple-500/25",
+      gradient: "from-purple-500 to-violet-600",
+      description: "Create study cards"
     },
     {
       label: "Explain",
       task: "explain",
       icon: Lightbulb,
-      gradient: "from-orange-500 via-amber-600 to-yellow-600",
-      hoverGradient: "hover:from-orange-400 hover:via-amber-500 hover:to-yellow-500",
-      shadow: "shadow-orange-500/25",
+      gradient: "from-orange-500 to-amber-500",
+      description: "Break down complex concepts"
     },
   ];
+
+  const handleInputResize = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    target.style.height = 'auto';
+    target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+  };
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
-      </div>
-
-      {/* Floating particles */}
-      <div className="absolute inset-0 pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-white/20 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
-            }}
-          ></div>
-        ))}
-      </div>
-
-      <main className="relative z-10 min-h-screen flex flex-col items-center p-8">
-        {/* Header */}
-        <div className="text-center mb-12 animate-fade-in-down">
-          <div className="flex items-center justify-center mb-4 space-x-2">
-            <BookOpen className="w-8 h-8 text-purple-400 animate-bounce" />
-            <Sparkles className="w-6 h-6 text-yellow-400 animate-pulse" />
-            <Brain className="w-8 h-8 text-blue-400 animate-bounce delay-100" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 flex flex-col">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 p-4 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-8 h-8 text-indigo-600" />
+            <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
           </div>
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent mb-4 animate-gradient">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             StudyMind AI
           </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-            Transform your learning with AI-powered study tools. Paste your material and watch the magic happen.
-          </p>
         </div>
+      </div>
 
-        {/* Input Section */}
-        <div className="w-full max-w-4xl mb-8 animate-fade-in-up">
-          <div className="relative group">
-            <textarea
-              className="w-full p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:bg-white/15"
-              rows={8}
-              placeholder="✨ Paste your course material, notes, or any text you want to study..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full max-w-4xl">
-          {buttons.map((button, index) => {
-            const Icon = button.icon;
-            return (
-              <button
-                key={button.task}
-                onClick={() => handleGenerate(button.task)}
-                disabled={!text.trim() || loading}
-                className={`group relative px-8 py-6 bg-gradient-to-r ${button.gradient} ${button.hoverGradient} text-white rounded-2xl shadow-2xl ${button.shadow} transform transition-all duration-300 hover:scale-105 hover:shadow-3xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none animate-fade-in-up`}
-                style={{ animationDelay: `${index * 100}ms` }}
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto p-4 space-y-6">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}
+            >
+              <div
+                className={`max-w-3xl p-4 rounded-2xl ${
+                  message.type === 'user'
+                    ? 'bg-indigo-600 text-white ml-auto'
+                    : message.isError
+                    ? 'bg-red-50 border border-red-200 text-red-800'
+                    : 'bg-white shadow-sm border border-gray-200'
+                }`}
               >
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="relative flex items-center justify-center space-x-3">
-                  <Icon className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
-                  <span className="text-lg font-semibold">{button.label}</span>
-                </div>
-                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center space-y-4 animate-fade-in">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full border-4 border-purple-500/30 border-t-purple-500 animate-spin"></div>
-              <div className="absolute inset-2 w-12 h-12 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin animate-reverse"></div>
+                {message.isProcessing ? (
+                  <div className="flex items-center space-x-3">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    </div>
+                    <span className="text-gray-600">{message.content}</span>
+                  </div>
+                ) : (
+                  <>
+                    {message.task && (
+                      <div className="flex items-center space-x-2 mb-3 text-indigo-600">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="font-semibold text-sm">{message.task}</span>
+                      </div>
+                    )}
+                    <div className="whitespace-pre-wrap">{message.content}</div>
+                  </>
+                )}
+              </div>
             </div>
-            <p className="text-xl text-purple-300 font-medium flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 animate-pulse" />
-              <span>AI is crafting your {task}...</span>
-              <Sparkles className="w-5 h-5 animate-pulse" />
-            </p>
-          </div>
-        )}
+          ))}
 
-        {/* Output Section */}
-        {output && !loading && (
-          <div className="w-full max-w-4xl animate-fade-in-up">
-            <div className="relative group">
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-                <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-4">
-                  <h3 className="text-xl font-bold text-white flex items-center space-x-2">
-                    <Sparkles className="w-5 h-5" />
-                    <span>Your {task} is ready!</span>
-                  </h3>
-                </div>
-                <div className="p-6">
-                  <pre className="text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">
-                    {output}
-                  </pre>
+          {/* Animated Options */}
+          {showOptions && !loading && (
+            <div className="flex justify-start animate-fade-in-up">
+              <div className="max-w-3xl">
+                <div className="mb-3 text-gray-600 font-medium">Choose how you&apos;d like to study this:</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {options.map((option, index) => {
+                    const Icon = option.icon;
+                    return (
+                      <button
+                        key={option.task}
+                        onClick={() => handleOptionSelect(option.task, option.label)}
+                        className={`relative group p-4 bg-gradient-to-r ${option.gradient} text-white rounded-xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 animate-option-slide-in text-left`}
+                        style={{ animationDelay: `${index * 150}ms` }}
+                      >
+                        <div className="flex items-center space-x-3 mb-2">
+                          <Icon className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
+                          <span className="font-semibold">{option.label}</span>
+                        </div>
+                        <div className="text-sm text-white/80">{option.description}</div>
+                        <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-white/20 to-transparent"></div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
             </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Input Area */}
+      <div className="bg-white/80 backdrop-blur-sm border-t border-gray-200/50 p-4 sticky bottom-0">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative flex items-end space-x-3">
+            <div className="flex-1 relative">
+              <textarea
+                ref={inputRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyPress}
+                onInput={handleInputResize}
+                placeholder="Paste your study material here..."
+                className="w-full p-4 pr-12 rounded-2xl border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all duration-200 bg-white shadow-sm max-h-32"
+                rows={1}
+                style={{
+                  minHeight: '56px',
+                  height: 'auto',
+                  overflowY: inputText.split('\n').length > 3 ? 'auto' : 'hidden'
+                }}
+              />
+            </div>
+            <button
+              onClick={handleSend}
+              disabled={!inputText.trim() || loading}
+              className="p-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <ArrowUp className="w-5 h-5" />
+            </button>
           </div>
-        )}
-      </main>
+        </div>
+      </div>
 
       <style jsx>{`
-        @keyframes fade-in-down {
-          from {
-            opacity: 0;
-            transform: translateY(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
         @keyframes fade-in-up {
           from {
             opacity: 0;
-            transform: translateY(30px);
+            transform: translateY(20px);
           }
           to {
             opacity: 1;
@@ -211,56 +300,24 @@ export default function Home() {
           }
         }
 
-        @keyframes fade-in {
+        @keyframes option-slide-in {
           from {
             opacity: 0;
+            transform: translateY(30px) scale(0.9);
           }
           to {
             opacity: 1;
+            transform: translateY(0) scale(1);
           }
-        }
-
-        @keyframes gradient {
-          0%, 100% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-        }
-
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
-        }
-
-        .animate-fade-in-down {
-          animation: fade-in-down 0.8s ease-out forwards;
         }
 
         .animate-fade-in-up {
-          animation: fade-in-up 0.8s ease-out forwards;
+          animation: fade-in-up 0.6s ease-out forwards;
         }
 
-        .animate-fade-in {
-          animation: fade-in 0.6s ease-out forwards;
-        }
-
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
-        }
-
-        .animate-reverse {
-          animation-direction: reverse;
+        .animate-option-slide-in {
+          animation: option-slide-in 0.5s ease-out forwards;
+          opacity: 0;
         }
       `}</style>
     </div>
