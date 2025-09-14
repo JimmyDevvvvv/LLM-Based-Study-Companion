@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { BookOpen, Zap, Brain, Lightbulb, Sparkles, FileText, ArrowUp, Feather, Scroll, Crown } from "lucide-react";
+import { BookOpen, Brain, Lightbulb, FileText, Send, User, Sparkles, Moon, Sun } from "lucide-react";
 
 interface Message {
   id: number;
@@ -16,41 +16,35 @@ interface Message {
 interface Option {
   label: string;
   task: string;
-  icon: any;
-  gradient: string;
+  icon: React.ComponentType<{ className?: string }>;
   description: string;
 }
 
-export default function Home() {
+export default function StudyMind() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const [currentText, setCurrentText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isDark, setIsDark] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setMounted(true);
-    // Add welcome message
+    // Check for saved theme preference or default to light
+    const savedTheme = localStorage.getItem('theme');
+    setIsDark(savedTheme === 'dark');
+    
     setMessages([
       {
         id: 1,
         type: 'assistant',
-        content: 'Greetings, scholar. I am StudyMind AI, your companion in the pursuit of knowledge. Share thy texts, and I shall illuminate the path to wisdom through the ancient arts of learning. ✨📜',
+        content: "Hello! I'm StudyMind AI. I can help you study any text by creating summaries, quizzes, flashcards, or explanations. Just paste your content below to get started.",
         timestamp: new Date()
       }
     ]);
-
-    // Mouse tracking for dynamic effects
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   useEffect(() => {
@@ -61,10 +55,15 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const toggleTheme = () => {
+    const newTheme = !isDark;
+    setIsDark(newTheme);
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+  };
+
   const handleSend = () => {
     if (!inputText.trim()) return;
 
-    // Add user message
     const userMessage: Message = {
       id: Date.now(),
       type: 'user',
@@ -76,10 +75,9 @@ export default function Home() {
     setCurrentText(inputText);
     setInputText("");
     
-    // Show animated options
     setTimeout(() => {
       setShowOptions(true);
-    }, 800);
+    }, 300);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -93,11 +91,10 @@ export default function Home() {
     setShowOptions(false);
     setLoading(true);
 
-    // Add assistant message indicating processing
     const processingMessage: Message = {
       id: Date.now(),
       type: 'assistant',
-      content: `Conjuring your ${label.toLowerCase()} from the depths of knowledge...`,
+      content: `I'll create a ${label.toLowerCase()} for you. One moment...`,
       timestamp: new Date(),
       isProcessing: true
     };
@@ -115,18 +112,17 @@ export default function Home() {
       const resultMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: data.output || "The arcane arts have failed us: " + JSON.stringify(data),
+        content: data.output || "I encountered an error: " + JSON.stringify(data),
         timestamp: new Date(),
         task: label
       };
 
-      // Replace processing message with result
       setMessages(prev => prev.filter(msg => !msg.isProcessing).concat([resultMessage]));
     } catch (err) {
       const errorMessage: Message = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: "The scholarly connection has been severed: " + String(err),
+        content: "I'm having trouble connecting to my backend service. Please try again later.",
         timestamp: new Date(),
         isError: true
       };
@@ -139,32 +135,28 @@ export default function Home() {
 
   const options: Option[] = [
     {
-      label: "Summarize",
-      task: "summarize",
-      icon: Scroll,
-      gradient: "from-amber-700 via-amber-600 to-yellow-600",
-      description: "Distill wisdom to its essence"
+      label: "Summary",
+      task: "summarize", 
+      icon: FileText,
+      description: "Get key points and main ideas"
     },
     {
-      label: "Quiz Me",
+      label: "Quiz",
       task: "quiz",
-      icon: Crown,
-      gradient: "from-red-900 via-red-800 to-red-700",
-      description: "Test thy scholarly mettle"
+      icon: Brain,
+      description: "Test your understanding"
     },
     {
       label: "Flashcards",
-      task: "flashcards",
+      task: "flashcards", 
       icon: BookOpen,
-      gradient: "from-emerald-900 via-emerald-800 to-emerald-700",
-      description: "Forge cards of remembrance"
+      description: "Create study cards"
     },
     {
-      label: "Explain",
+      label: "Explanation",
       task: "explain",
-      icon: Feather,
-      gradient: "from-indigo-900 via-indigo-800 to-purple-800",
-      description: "Unravel complex mysteries"
+      icon: Lightbulb,
+      description: "Detailed breakdown of concepts"
     },
   ];
 
@@ -177,355 +169,182 @@ export default function Home() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-stone-900 to-amber-950 relative overflow-hidden">
-      {/* Dynamic floating elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        {/* Floating books */}
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={`book-${i}`}
-            className="absolute opacity-10 text-amber-400 animate-float-slow"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${8 + Math.random() * 4}s`,
-            }}
-          >
-            <BookOpen className="w-6 h-6" />
+    <div className={`flex h-screen ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-800'}`}>
+      
+      {/* Sidebar */}
+      <div className={`w-64 ${isDark ? 'bg-black' : 'bg-gray-900'} text-white flex flex-col`}>
+        <div className={`p-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-700'}`}>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <span className="font-medium">StudyMind</span>
           </div>
-        ))}
-        
-        {/* Magical particles */}
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={`particle-${i}`}
-            className="absolute w-1 h-1 bg-amber-400 rounded-full animate-twinkle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
-            }}
-          />
-        ))}
-
-        {/* Dynamic gradient orb following mouse */}
-        <div
-          className="absolute w-96 h-96 bg-gradient-radial from-amber-900/20 via-amber-800/10 to-transparent rounded-full blur-3xl transition-all duration-1000 ease-out"
-          style={{
-            left: mousePosition.x - 192,
-            top: mousePosition.y - 192,
-          }}
-        />
-      </div>
-
-      {/* Ornate border pattern */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-amber-600 to-transparent opacity-50"></div>
-        <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-amber-600 to-transparent opacity-50"></div>
-        <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-transparent via-amber-600 to-transparent opacity-50"></div>
-        <div className="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-transparent via-amber-600 to-transparent opacity-50"></div>
-      </div>
-
-      {/* Header */}
-      <div className="relative z-10 bg-black/40 backdrop-blur-md border-b border-amber-600/30 p-6 sticky top-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-center space-x-4">
-          <div className="flex items-center space-x-3 animate-glow-pulse">
-            <BookOpen className="w-10 h-10 text-amber-400 animate-bounce-gentle" />
-            <Sparkles className="w-6 h-6 text-yellow-300 animate-twinkle" />
-            <Feather className="w-8 h-8 text-amber-500 animate-sway" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-4xl font-serif font-bold bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent animate-text-shimmer drop-shadow-2xl">
-              StudyMind Academia
-            </h1>
-            <p className="text-amber-300/80 font-serif italic text-sm mt-1">~ Illuminating the Path to Wisdom ~</p>
+        </div>
+        <div className="flex-1 p-3">
+          <button className={`w-full text-left px-3 py-2.5 rounded-md ${isDark ? 'bg-gray-900 hover:bg-gray-800' : 'bg-gray-800 hover:bg-gray-700'} text-sm transition-colors`}>
+            New conversation
+          </button>
+        </div>
+        <div className={`p-3 border-t ${isDark ? 'border-gray-800' : 'border-gray-700'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 text-sm text-gray-300">
+              <User className="w-5 h-5" />
+              <span>User</span>
+            </div>
+            <button
+              onClick={toggleTheme}
+              className={`p-1.5 rounded-md ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-700'} transition-colors`}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-gray-300" />
+              ) : (
+                <Moon className="w-4 h-4 text-gray-300" />
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="relative z-10 flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-4xl mx-auto p-6 space-y-8">
-          {messages.map((message, index) => (
-            <div
-              key={message.id}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-message-appear`}
-              style={{ animationDelay: `${index * 200}ms` }}
-            >
-              <div
-                className={`max-w-3xl p-6 rounded-2xl backdrop-blur-md border transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl group ${
-                  message.type === 'user'
-                    ? 'bg-gradient-to-br from-amber-800/80 to-amber-700/80 border-amber-600/50 text-amber-100 ml-auto shadow-xl shadow-amber-900/20'
-                    : message.isError
-                    ? 'bg-red-950/80 border-red-700/50 text-red-200 shadow-xl shadow-red-900/20'
-                    : 'bg-gradient-to-br from-stone-800/80 to-slate-800/80 border-stone-600/50 text-stone-100 shadow-xl shadow-black/40'
-                }`}
-              >
-                {message.isProcessing ? (
-                  <div className="flex items-center space-x-4">
-                    <div className="flex space-x-2">
-                      <div className="w-3 h-3 bg-amber-400 rounded-full animate-magical-bounce"></div>
-                      <div className="w-3 h-3 bg-amber-500 rounded-full animate-magical-bounce" style={{animationDelay: '0.2s'}}></div>
-                      <div className="w-3 h-3 bg-yellow-400 rounded-full animate-magical-bounce" style={{animationDelay: '0.4s'}}></div>
-                    </div>
-                    <span className="text-amber-200 font-serif italic">{message.content}</span>
-                  </div>
-                ) : (
-                  <>
-                    {message.task && (
-                      <div className="flex items-center space-x-3 mb-4 pb-3 border-b border-amber-600/30">
-                        <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
-                        <span className="font-serif font-bold text-amber-300 text-lg tracking-wide">{message.task}</span>
-                        <div className="flex-1 h-px bg-gradient-to-r from-amber-600/50 to-transparent"></div>
-                      </div>
-                    )}
-                    <div className="whitespace-pre-wrap font-serif leading-relaxed text-lg group-hover:text-amber-50 transition-colors duration-300">
-                      {message.content}
-                    </div>
-                  </>
-                )}
-              </div>
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        
+        {/* Header */}
+        <div className={`border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} px-6 py-4`}>
+          <div className="flex items-center justify-between">
+            <h1 className={`text-lg font-medium ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>StudyMind AI</h1>
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>Online</span>
             </div>
-          ))}
+          </div>
+        </div>
 
-          {/* Animated Options */}
-          {showOptions && !loading && (
-            <div className="flex justify-start animate-options-reveal">
-              <div className="max-w-3xl">
-                <div className="mb-6 text-amber-200 font-serif font-semibold text-xl flex items-center space-x-3">
-                  <Crown className="w-6 h-6 text-yellow-400 animate-pulse" />
-                  <span>Choose thy path of enlightenment:</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {options.map((option, index) => {
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.task}
-                        onClick={() => handleOptionSelect(option.task, option.label)}
-                        className={`relative group p-6 bg-gradient-to-br ${option.gradient} text-white rounded-2xl border border-white/20 shadow-2xl hover:shadow-3xl transform transition-all duration-500 hover:scale-110 hover:-rotate-2 animate-option-materialize text-left overflow-hidden`}
-                        style={{ animationDelay: `${index * 250}ms` }}
-                      >
-                        {/* Magical shimmer overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
-                        
-                        <div className="relative z-10">
-                          <div className="flex items-center space-x-4 mb-3">
-                            <div className="p-2 bg-white/20 rounded-full group-hover:bg-white/30 transition-all duration-300">
-                              <Icon className="w-6 h-6 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300" />
-                            </div>
-                            <span className="font-serif font-bold text-xl">{option.label}</span>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto">
+            {messages.map((message, index) => (
+              <div key={message.id} className="group">
+                <div className={`px-6 py-8 ${message.type === 'assistant' ? (isDark ? 'bg-gray-800' : 'bg-gray-50') : ''}`}>
+                  <div className="flex items-start space-x-4">
+                    
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 ${
+                      message.type === 'user' ? 'bg-blue-600' : 'bg-green-600'
+                    }`}>
+                      {message.type === 'user' ? 'U' : 'AI'}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {message.task && (
+                        <div className="mb-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${isDark ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            {message.task}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {message.isProcessing ? (
+                        <div className={`flex items-center space-x-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <div className="flex space-x-1">
+                            <div className={`w-1.5 h-1.5 ${isDark ? 'bg-gray-500' : 'bg-gray-400'} rounded-full animate-bounce`}></div>
+                            <div className={`w-1.5 h-1.5 ${isDark ? 'bg-gray-500' : 'bg-gray-400'} rounded-full animate-bounce`} style={{animationDelay: '0.1s'}}></div>
+                            <div className={`w-1.5 h-1.5 ${isDark ? 'bg-gray-500' : 'bg-gray-400'} rounded-full animate-bounce`} style={{animationDelay: '0.2s'}}></div>
                           </div>
-                          <div className="text-sm text-white/90 font-serif italic leading-relaxed group-hover:text-white transition-colors duration-300">
-                            {option.description}
+                          <span className="ml-2">{message.content}</span>
+                        </div>
+                      ) : (
+                        <div className={`prose prose-gray max-w-none ${
+                          message.isError ? 'text-red-600' : (isDark ? 'text-gray-200' : 'text-gray-900')
+                        }`}>
+                          <div className="whitespace-pre-wrap leading-7">
+                            {message.content}
                           </div>
                         </div>
-
-                        {/* Magical border glow */}
-                        <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-white/30 via-transparent to-white/20 pointer-events-none"></div>
-                      </button>
-                    );
-                  })}
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            ))}
 
-          <div ref={messagesEndRef} />
+            {/* Study Options */}
+            {showOptions && !loading && (
+              <div className="group">
+                <div className={`px-6 py-8 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                  <div className="flex items-start space-x-4">
+                    <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                      AI
+                    </div>
+                    <div className="flex-1">
+                      <p className={`${isDark ? 'text-gray-200' : 'text-gray-900'} mb-4`}>
+                        I can help you study this content in several ways. What would you like me to create?
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {options.map((option) => {
+                          const IconComponent = option.icon;
+                          return (
+                            <button
+                              key={option.task}
+                              onClick={() => handleOptionSelect(option.task, option.label)}
+                              className={`flex items-center space-x-3 p-4 border ${isDark ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-700' : 'border-gray-200 hover:border-gray-300 hover:bg-white'} rounded-lg transition-all text-left`}
+                            >
+                              <div className={`w-8 h-8 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-md flex items-center justify-center flex-shrink-0`}>
+                                <IconComponent className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                              </div>
+                              <div>
+                                <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{option.label}</div>
+                                <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="relative z-10 bg-black/50 backdrop-blur-md border-t border-amber-600/30 p-6 sticky bottom-0">
-        <div className="max-w-4xl mx-auto">
-          <div className="relative flex items-end space-x-4">
-            <div className="flex-1 relative group">
+        {/* Input Area */}
+        <div className={`border-t ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+          <div className="max-w-3xl mx-auto px-6 py-4">
+            <div className="relative">
               <textarea
                 ref={inputRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyPress}
                 onInput={handleInputResize}
-                placeholder="Share thy scholarly texts here, noble seeker of knowledge..."
-                className="w-full p-6 rounded-2xl border border-amber-600/50 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20 resize-none transition-all duration-300 bg-gradient-to-br from-stone-800/80 to-slate-800/80 backdrop-blur-md shadow-xl max-h-32 text-amber-100 placeholder-amber-400/70 font-serif text-lg group-hover:shadow-2xl"
+                placeholder="Message StudyMind..."
+                className={`w-full px-4 py-3 pr-12 border ${isDark ? 'border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400 focus:border-blue-400' : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500'} rounded-lg resize-none focus:outline-none focus:ring-1 ${isDark ? 'focus:ring-blue-400' : 'focus:ring-blue-500'} max-h-32`}
                 rows={1}
                 style={{
-                  minHeight: '72px',
+                  minHeight: '52px',
                   height: 'auto',
-                  overflowY: inputText.split('\n').length > 3 ? 'auto' : 'hidden'
                 }}
               />
-              {/* Input glow effect */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+              <button
+                onClick={handleSend}
+                disabled={!inputText.trim() || loading}
+                className={`absolute right-3 bottom-3 w-8 h-8 ${isDark ? 'bg-white hover:bg-gray-200 text-black' : 'bg-black hover:bg-gray-800 text-white'} disabled:bg-gray-300 disabled:hover:bg-gray-300 rounded-md flex items-center justify-center transition-colors disabled:cursor-not-allowed`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={handleSend}
-              disabled={!inputText.trim() || loading}
-              className="p-5 bg-gradient-to-br from-amber-700 to-amber-600 hover:from-amber-600 hover:to-amber-500 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-110 hover:rotate-3 group border border-amber-500/50"
-            >
-              <ArrowUp className="w-6 h-6 group-hover:scale-125 transition-transform duration-200" />
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
+            <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-2 text-center`}>
+              StudyMind can make mistakes. Check important info.
+            </div>
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
-
-        .font-serif {
-          font-family: 'EB Garamond', serif;
-        }
-
-        @keyframes message-appear {
-          from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes options-reveal {
-          from {
-            opacity: 0;
-            transform: translateY(40px) scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes option-materialize {
-          from {
-            opacity: 0;
-            transform: translateY(50px) scale(0.8) rotate(-5deg);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1) rotate(0deg);
-          }
-        }
-
-        @keyframes float-slow {
-          0%, 100% {
-            transform: translateY(0px) rotate(0deg);
-          }
-          33% {
-            transform: translateY(-20px) rotate(5deg);
-          }
-          66% {
-            transform: translateY(10px) rotate(-3deg);
-          }
-        }
-
-        @keyframes twinkle {
-          0%, 100% {
-            opacity: 0.3;
-            transform: scale(0.8);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.2);
-          }
-        }
-
-        @keyframes bounce-gentle {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-8px);
-          }
-        }
-
-        @keyframes sway {
-          0%, 100% {
-            transform: rotate(-5deg);
-          }
-          50% {
-            transform: rotate(5deg);
-          }
-        }
-
-        @keyframes text-shimmer {
-          0% {
-            background-position: -200% center;
-          }
-          100% {
-            background-position: 200% center;
-          }
-        }
-
-        @keyframes glow-pulse {
-          0%, 100% {
-            filter: drop-shadow(0 0 5px rgb(251 191 36 / 0.5));
-          }
-          50% {
-            filter: drop-shadow(0 0 20px rgb(251 191 36 / 0.8));
-          }
-        }
-
-        @keyframes magical-bounce {
-          0%, 100% {
-            transform: translateY(0) scale(1);
-          }
-          50% {
-            transform: translateY(-12px) scale(1.2);
-          }
-        }
-
-        .animate-message-appear {
-          animation: message-appear 0.8s ease-out forwards;
-        }
-
-        .animate-options-reveal {
-          animation: options-reveal 1s ease-out forwards;
-        }
-
-        .animate-option-materialize {
-          animation: option-materialize 0.7s ease-out forwards;
-          opacity: 0;
-        }
-
-        .animate-float-slow {
-          animation: float-slow 8s ease-in-out infinite;
-        }
-
-        .animate-twinkle {
-          animation: twinkle 2s ease-in-out infinite;
-        }
-
-        .animate-bounce-gentle {
-          animation: bounce-gentle 2s ease-in-out infinite;
-        }
-
-        .animate-sway {
-          animation: sway 3s ease-in-out infinite;
-        }
-
-        .animate-text-shimmer {
-          background-size: 200% auto;
-          animation: text-shimmer 3s linear infinite;
-        }
-
-        .animate-glow-pulse {
-          animation: glow-pulse 2s ease-in-out infinite;
-        }
-
-        .animate-magical-bounce {
-          animation: magical-bounce 1s ease-in-out infinite;
-        }
-
-        .bg-gradient-radial {
-          background: radial-gradient(circle, var(--tw-gradient-stops));
-        }
-      `}</style>
     </div>
   );
 }
