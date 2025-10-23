@@ -451,8 +451,9 @@ export default function StudyMind() {
                   </div>
                   <div className="flex-1">
                     <p className={`${isDark ? 'text-gray-200' : 'text-gray-900'} mb-6 text-lg font-medium`}>
-                      🎯 Choose how you'd like to study this content:
-                    </p>
+  🎯 Choose how you&apos;d like to study this content:
+</p>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {options.map((option, index) => {
                         const IconComponent = option.icon;
