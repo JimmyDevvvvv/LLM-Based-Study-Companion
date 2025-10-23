@@ -17,6 +17,7 @@ def build_prompt(task, text, user_id=None):
     """Build a context-aware prompt using educator memory."""
     text = text.strip()
     context = ""
+    tone_instruction = ""
     
     # Add educator-specific context if user_id provided
     if user_id:
@@ -24,15 +25,19 @@ def build_prompt(task, text, user_id=None):
         memory_context = memory_manager.build_memory_context(memory)
         if memory_context:
             context = memory_context
+        
+        # Get tone instruction
+        tone = memory.get("preferred_tone", "professional")
+        tone_instruction = memory_manager.get_tone_instruction(tone)
     
     task_prompts = {
-        "summarize": f"{context}Please summarize this text for teachers in a clear, actionable way:\n\n{text}",
-        "quiz": f"{context}Generate 5 thoughtful quiz questions with answers from this text. Make them appropriate for the students:\n\n{text}",
-        "flashcards": f"{context}Create flashcards (Q&A format) for students based on this text. Make them clear and memorable:\n\n{text}",
-        "explain": f"{context}Explain this text in a simple, engaging way for students:\n\n{text}"
+        "summarize": f"{tone_instruction}{context}Please summarize this text for teachers in a clear, actionable way:\n\n{text}",
+        "quiz": f"{tone_instruction}{context}Generate 5 thoughtful quiz questions with answers from this text. Make them appropriate for the students:\n\n{text}",
+        "flashcards": f"{tone_instruction}{context}Create flashcards (Q&A format) for students based on this text. Make them clear and memorable:\n\n{text}",
+        "explain": f"{tone_instruction}{context}Explain this text in a simple, engaging way for students:\n\n{text}"
     }
     
-    return task_prompts.get(task, f"{context}Summarize this text:\n\n{text}")
+    return task_prompts.get(task, f"{tone_instruction}{context}Summarize this text:\n\n{text}")
 
 @app.route("/generate", methods=["POST"])
 def generate():
@@ -40,7 +45,7 @@ def generate():
     data = request.json or {}
     text = data.get("text", "")
     task = data.get("task", "summarize")
-    user_id = data.get("user_id", "default_user")  # Get user_id from request
+    user_id = data.get("user_id", "default_user")
     
     if not text:
         return jsonify({"error": "No text provided"}), 400
@@ -52,7 +57,7 @@ def generate():
         print(f"Error processing memory: {e}")
         updated_memory = {}
     
-    # Build prompt with educator context
+    # Build prompt with educator context and tone
     prompt = build_prompt(task, text, user_id)
     
     # Call Ollama
@@ -83,6 +88,50 @@ def generate():
         "output": output,
         "memory_summary": memory_manager.build_memory_context(updated_memory).replace("EDUCATOR CONTEXT: ", "").replace("\n\n", "").strip()
     })
+
+@app.route("/tone/<user_id>", methods=["GET"])
+def get_tone(user_id):
+    """Get current tone for a user."""
+    try:
+        memory = memory_manager.load_memory(user_id)
+        current_tone = memory.get("preferred_tone", "professional")
+        return jsonify({
+            "user_id": user_id,
+            "tone": current_tone
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/tone/<user_id>", methods=["POST"])
+def set_tone(user_id):
+    """Set tone preference for a user."""
+    data = request.json or {}
+    tone = data.get("tone", "professional")
+    
+    # Validate tone
+    available_tones = memory_manager.get_available_tones()
+    if tone not in available_tones:
+        return jsonify({"error": f"Invalid tone. Must be one of: {', '.join(available_tones)}"}), 400
+    
+    try:
+        # Load existing memory
+        memory = memory_manager.load_memory(user_id)
+        if not memory:
+            memory = memory_manager._empty_structure()
+        
+        # Update tone
+        memory["preferred_tone"] = tone
+        
+        # Save memory
+        memory_manager.save_memory(user_id, memory)
+        
+        return jsonify({
+            "message": "Tone updated successfully",
+            "user_id": user_id,
+            "tone": tone
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/memory/<user_id>", methods=["GET"])
 def get_memory(user_id):

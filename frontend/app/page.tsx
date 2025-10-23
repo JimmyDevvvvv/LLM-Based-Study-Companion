@@ -43,6 +43,21 @@ export default function StudyMind() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // New: user and tone state
+  const [userId] = useState<string>("default_user");
+  const [tone, setTone] = useState<string>("professional");
+  const [toneMenuOpen, setToneMenuOpen] = useState<boolean>(false);
+  const availableTones: string[] = [
+    "professional",
+    "casual",
+    "enthusiastic",
+    "humorous",
+    "concise",
+    "encouraging",
+    "socratic",
+    "storyteller"
+  ];
+
   useEffect(() => {
     setMounted(true);
     const savedTheme = localStorage.getItem('theme');
@@ -74,7 +89,21 @@ export default function StudyMind() {
         timestamp: new Date()
       }
     ]);
-  }, []);
+
+    // Load current tone from backend
+    (async () => {
+      try {
+        const res = await fetch(`http://127.0.0.1:5000/tone/${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.tone) setTone(data.tone);
+        }
+      } catch (err) {
+        // fail silently, keep default tone
+        console.error("Failed to load tone:", err);
+      }
+    })();
+  }, [userId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -154,7 +183,8 @@ export default function StudyMind() {
       const res = await fetch("http://127.0.0.1:5000/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: currentText, task }),
+        // include user_id so backend updates/reads the correct memory / tone
+        body: JSON.stringify({ text: currentText, task, user_id: userId }),
       });
       const data = await res.json();
       
@@ -179,6 +209,34 @@ export default function StudyMind() {
       setMessages(prev => prev.filter(msg => !msg.isProcessing).concat([errorMessage]));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // New: change tone on server
+  const changeTone = async (newTone: string) => {
+    setToneMenuOpen(false);
+    if (newTone === tone) return;
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/tone/${userId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tone: newTone })
+      });
+      if (res.ok) {
+        setTone(newTone);
+        // optional: show a small confirmation message
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'assistant',
+          content: `Tone updated to "${newTone}". I'll use that style going forward.`,
+          timestamp: new Date()
+        }]);
+      } else {
+        const err = await res.json();
+        console.error("Failed to set tone:", err);
+      }
+    } catch (e) {
+      console.error("Error setting tone:", e);
     }
   };
 
@@ -305,19 +363,52 @@ export default function StudyMind() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-xl ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-700'} transition-all duration-300 hover:scale-110 group`}
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
+
+            {/* Tone selector UI */}
+            <div className="flex items-center space-x-2">
+              <div className="text-xs text-gray-300 mr-2 hidden sm:block">Tone</div>
               <div className="relative">
-                {isDark ? (
-                  <Sun className="w-5 h-5 text-yellow-400 group-hover:rotate-180 transition-all duration-500" />
-                ) : (
-                  <Moon className="w-5 h-5 text-blue-400 group-hover:-rotate-12 transition-all duration-300" />
+                <button
+                  onClick={() => setToneMenuOpen(!toneMenuOpen)}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-800/60 hover:bg-gray-700' : 'bg-white/10 hover:bg-gray-100'} border border-gray-700/50`}
+                  title="Change response tone"
+                >
+                  {tone}
+                </button>
+                {toneMenuOpen && (
+                  <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-50 ${isDark ? 'bg-gray-800/95 border border-gray-700' : 'bg-white/95 border border-gray-200'}`}>
+                    <div className="p-2">
+                      {availableTones.map(t => (
+                        <button
+                          key={t}
+                          onClick={() => changeTone(t)}
+                          className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700 text-gray-200' : 'text-gray-700'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="capitalize">{t}</span>
+                            {t === tone && <span className="text-xs text-green-500">Selected</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            </button>
+
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-xl ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-700'} transition-all duration-300 hover:scale-110 group`}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <div className="relative">
+                  {isDark ? (
+                    <Sun className="w-5 h-5 text-yellow-400 group-hover:rotate-180 transition-all duration-500" />
+                  ) : (
+                    <Moon className="w-5 h-5 text-blue-400 group-hover:-rotate-12 transition-all duration-300" />
+                  )}
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       </div>
