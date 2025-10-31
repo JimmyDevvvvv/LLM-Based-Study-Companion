@@ -1,14 +1,36 @@
 {
   "default_user": {
     "teaching_subjects": [
-      "computer networks"
+      "computing",
+      "networking",
+      "networks",
+      "computer science",
+      "computer networks",
+      "Not specified"
     ],
-    "grade_levels": [],
+    "grade_levels": [
+      "3rd grade",
+      "Not specified"
+    ],
     "teaching_style": [],
-    "interests": [],
-    "goals": [],
-    "preferred_tone": "",
-    "last_updated": "2025-10-23T08:58:05.022873",
-    "interaction_count": 1
+    "interests": [
+      "technology integration",
+      "technology",
+      "networking",
+      "programming",
+      "algorithms",
+      "Not specified"
+    ],
+    "goals": [
+      "Go over lecture content well enough"
+    ],
+    "future_plans": [],
+    "upcoming_topics": [],
+    "planned_activities": [],
+    "learning_objectives": [],
+    "preferred_tone": "professional",
+    "next_focus_areas": [],
+    "last_updated": "2025-10-29T18:12:31.976517",
+    "interaction_count": 14
   }
 }

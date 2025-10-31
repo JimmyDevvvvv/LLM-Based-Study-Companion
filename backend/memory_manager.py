@@ -64,13 +64,18 @@ class EducatorMemory:
         # Get available tones for the prompt
         tone_options = ", ".join(self.get_available_tones())
         
-        extraction_prompt = f"""Analyze this teacher's message and extract relevant information about them.
+        extraction_prompt = f"""Analyze this teacher's message and extract relevant information about them, including future plans and goals.
 Return ONLY a valid JSON object with these fields (use empty arrays if nothing found):
 - teaching_subjects: list of subjects they teach (e.g., ["biology", "chemistry"])
 - grade_levels: list of grade levels or age groups (e.g., ["9th grade", "high school"])
 - teaching_style: list of teaching approaches (e.g., ["project-based", "hands-on", "inquiry-based"])
 - interests: list of educational interests or focuses (e.g., ["STEM education", "technology integration"])
 - goals: list of current goals or challenges (e.g., ["improve engagement", "integrate more technology"])
+- future_plans: list of planned changes or initiatives (e.g., ["implement new curriculum next semester", "start coding club next year"])
+- upcoming_topics: list of topics they plan to teach (e.g., ["advanced calculus in spring", "quantum physics next month"])
+- planned_activities: list of future classroom activities (e.g., ["science fair in March", "field trip next week"])
+- learning_objectives: list of future student learning goals (e.g., ["master Python basics by December", "complete AI projects by semester end"])
+- next_focus_areas: list of areas they plan to focus on next (e.g., ["digital literacy next term", "advanced robotics next year"])
 - preferred_tone: if the teacher expresses a preference for how they want responses (e.g., "casual", "professional", "humorous"), choose ONE from these options: {tone_options}. Leave empty if not mentioned.
 
 Important: Only extract information that is explicitly mentioned or clearly implied. Don't make assumptions.
@@ -129,7 +134,12 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
             "teaching_style": [],
             "interests": [],
             "goals": [],
-            "preferred_tone": ""
+            "future_plans": [],
+            "upcoming_topics": [],
+            "planned_activities": [],
+            "learning_objectives": [],
+            "preferred_tone": "",
+            "next_focus_areas": []
         }
     
     def _validate_extraction(self, extracted_info: Dict) -> Dict:
@@ -285,6 +295,31 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
         goals = memory.get("goals", [])
         if goals:
             context_parts.append(f"Current goals: {', '.join(goals)}")
+            
+        # Future plans
+        future_plans = memory.get("future_plans", [])
+        if future_plans:
+            context_parts.append(f"Planning to: {', '.join(future_plans)}")
+            
+        # Upcoming topics
+        upcoming_topics = memory.get("upcoming_topics", [])
+        if upcoming_topics:
+            context_parts.append(f"Will be teaching: {', '.join(upcoming_topics)}")
+            
+        # Planned activities
+        planned_activities = memory.get("planned_activities", [])
+        if planned_activities:
+            context_parts.append(f"Upcoming activities: {', '.join(planned_activities)}")
+            
+        # Learning objectives
+        learning_objectives = memory.get("learning_objectives", [])
+        if learning_objectives:
+            context_parts.append(f"Future learning goals: {', '.join(learning_objectives)}")
+            
+        # Next focus areas
+        next_focus_areas = memory.get("next_focus_areas", [])
+        if next_focus_areas:
+            context_parts.append(f"Planning to focus on: {', '.join(next_focus_areas)}")
         
         # Preferred tone
         tone = memory.get("preferred_tone", "")
