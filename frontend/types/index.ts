@@ -17,10 +17,11 @@ export interface Option {
 }
 
 export interface Conversation {
-  id: number;
+  id: string;
   title: string;
   lastMessage: string;
-  timestamp: Date;
+  timestamp: string;
+  messages?: Message[];
 }
 
 export interface GradingResult {

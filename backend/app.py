@@ -625,6 +625,143 @@ def health_check():
     return jsonify({"status": "healthy", "model": MODEL_NAME})
 
 
+# -------- Conversation Management --------
+@app.route("/conversations/<user_id>", methods=["GET"])
+def get_conversations(user_id):
+    """Get all conversations for a user."""
+    try:
+        conversations_file = os.path.join(DATA_DIR, f"conversations_{user_id}.json")
+        if not os.path.exists(conversations_file):
+            return jsonify({"conversations": []})
+        
+        with open(conversations_file, "r", encoding="utf-8") as f:
+            conversations = json.load(f)
+        
+        # Sort by timestamp (most recent first)
+        conversations.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        return jsonify({"conversations": conversations})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/conversations/<user_id>", methods=["POST"])
+def create_conversation(user_id):
+    """Create a new conversation."""
+    data = request.json or {}
+    title = data.get("title", "New Conversation")
+    
+    try:
+        conversations_file = os.path.join(DATA_DIR, f"conversations_{user_id}.json")
+        
+        # Load existing conversations
+        conversations = []
+        if os.path.exists(conversations_file):
+            with open(conversations_file, "r", encoding="utf-8") as f:
+                conversations = json.load(f)
+        
+        # Create new conversation
+        new_conversation = {
+            "id": str(datetime.now().timestamp()).replace(".", ""),
+            "title": title,
+            "messages": [],
+            "timestamp": datetime.now().isoformat(),
+            "lastMessage": ""
+        }
+        
+        conversations.append(new_conversation)
+        
+        # Save conversations
+        with open(conversations_file, "w", encoding="utf-8") as f:
+            json.dump(conversations, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({"conversation": new_conversation})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/conversations/<user_id>/<conversation_id>", methods=["GET"])
+def get_conversation(user_id, conversation_id):
+    """Get a specific conversation with all messages."""
+    try:
+        conversations_file = os.path.join(DATA_DIR, f"conversations_{user_id}.json")
+        if not os.path.exists(conversations_file):
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        with open(conversations_file, "r", encoding="utf-8") as f:
+            conversations = json.load(f)
+        
+        # Find the conversation
+        conversation = next((c for c in conversations if c["id"] == conversation_id), None)
+        if not conversation:
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        return jsonify({"conversation": conversation})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/conversations/<user_id>/<conversation_id>", methods=["PUT"])
+def update_conversation(user_id, conversation_id):
+    """Update a conversation (add messages, update title, etc.)."""
+    data = request.json or {}
+    
+    try:
+        conversations_file = os.path.join(DATA_DIR, f"conversations_{user_id}.json")
+        if not os.path.exists(conversations_file):
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        with open(conversations_file, "r", encoding="utf-8") as f:
+            conversations = json.load(f)
+        
+        # Find and update the conversation
+        for i, conv in enumerate(conversations):
+            if conv["id"] == conversation_id:
+                if "messages" in data:
+                    conversations[i]["messages"] = data["messages"]
+                    # Update lastMessage
+                    if data["messages"]:
+                        last_msg = data["messages"][-1]
+                        conversations[i]["lastMessage"] = last_msg.get("content", "")[:100]
+                
+                if "title" in data:
+                    conversations[i]["title"] = data["title"]
+                
+                conversations[i]["timestamp"] = datetime.now().isoformat()
+                
+                # Save conversations
+                with open(conversations_file, "w", encoding="utf-8") as f:
+                    json.dump(conversations, f, ensure_ascii=False, indent=2)
+                
+                return jsonify({"conversation": conversations[i]})
+        
+        return jsonify({"error": "Conversation not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/conversations/<user_id>/<conversation_id>", methods=["DELETE"])
+def delete_conversation(user_id, conversation_id):
+    """Delete a conversation."""
+    try:
+        conversations_file = os.path.join(DATA_DIR, f"conversations_{user_id}.json")
+        if not os.path.exists(conversations_file):
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        with open(conversations_file, "r", encoding="utf-8") as f:
+            conversations = json.load(f)
+        
+        # Filter out the conversation to delete
+        conversations = [c for c in conversations if c["id"] != conversation_id]
+        
+        # Save conversations
+        with open(conversations_file, "w", encoding="utf-8") as f:
+            json.dump(conversations, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({"message": "Conversation deleted successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # Add new route for retrieving saved files
 @app.route("/file", methods=["GET"])
 def get_file():

@@ -1,17 +1,18 @@
 "use client";
 
-import React from "react";
-import { BookOpen, User, Plus, MessageSquare, X } from "lucide-react";
+import React, { useState } from "react";
+import { BookOpen, User, Plus, MessageSquare, X, Trash2 } from "lucide-react";
 import { Conversation } from "@/types";
 
 interface SidebarProps {
   isDark: boolean;
   sidebarOpen: boolean;
   conversations: Conversation[];
-  currentConversation: number | null;
+  currentConversation: string | null;
   toggleSidebar: () => void;
   startNewConversation: () => void;
-  setCurrentConversation: (id: number) => void;
+  setCurrentConversation: (id: string) => void;
+  deleteConversation?: (id: string) => void;
 }
 
 export default function Sidebar({
@@ -21,8 +22,10 @@ export default function Sidebar({
   currentConversation,
   toggleSidebar,
   startNewConversation,
-  setCurrentConversation
+  setCurrentConversation,
+  deleteConversation
 }: SidebarProps) {
+  const [hoveredConv, setHoveredConv] = useState<string | null>(null);
   return (
     <>
       {/* Overlay for mobile sidebar */}
@@ -75,24 +78,66 @@ export default function Sidebar({
         <div className="flex-1 px-4 pb-4 overflow-y-auto">
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Chats</h3>
-            {conversations.map((conv, index) => (
-              <button
-                key={conv.id}
-                onClick={() => setCurrentConversation(conv.id)}
-                className={`relative w-full text-left p-3 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:scale-[1.02] hover:shadow-lg group animate-in fade-in slide-in-from-left-2 border border-transparent hover:border-purple-500/20`}
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-300">
-                    <MessageSquare className="w-4 h-4 text-blue-400 group-hover:text-blue-300 transition-colors" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate group-hover:text-white transition-colors bg-gradient-to-r from-gray-200 to-gray-300 group-hover:from-white group-hover:to-blue-100 bg-clip-text text-transparent">{conv.title}</p>
-                    <p className="text-xs text-gray-400 truncate group-hover:text-gray-300 transition-colors">{conv.lastMessage}</p>
-                  </div>
+            {conversations.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No conversations yet</p>
+                <p className="text-xs mt-1">Start a new chat to begin</p>
+              </div>
+            ) : (
+              conversations.map((conv, index) => (
+                <div
+                  key={conv.id}
+                  className="relative group"
+                  onMouseEnter={() => setHoveredConv(conv.id)}
+                  onMouseLeave={() => setHoveredConv(null)}
+                >
+                  <button
+                    onClick={() => setCurrentConversation(conv.id)}
+                    className={`relative w-full text-left p-3 rounded-xl transition-all duration-300 group animate-in fade-in slide-in-from-left-2 border ${
+                      currentConversation === conv.id
+                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-purple-500/40 shadow-lg'
+                        : 'border-transparent hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:border-purple-500/20'
+                    } hover:scale-[1.02] hover:shadow-lg`}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center transition-all duration-300 ${
+                        currentConversation === conv.id
+                          ? 'from-blue-500/40 to-purple-500/40'
+                          : 'from-blue-500/20 to-purple-500/20 group-hover:from-blue-500/30 group-hover:to-purple-500/30'
+                      }`}>
+                        <MessageSquare className={`w-4 h-4 transition-colors ${
+                          currentConversation === conv.id ? 'text-blue-300' : 'text-blue-400 group-hover:text-blue-300'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0 pr-8">
+                        <p className={`font-semibold text-sm truncate transition-colors bg-gradient-to-r bg-clip-text text-transparent ${
+                          currentConversation === conv.id
+                            ? 'from-white to-blue-100'
+                            : 'from-gray-200 to-gray-300 group-hover:from-white group-hover:to-blue-100'
+                        }`}>{conv.title}</p>
+                        <p className="text-xs text-gray-400 truncate group-hover:text-gray-300 transition-colors">{conv.lastMessage}</p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {/* Delete Button */}
+                  {deleteConversation && hoveredConv === conv.id && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                      title="Delete conversation"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              </button>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

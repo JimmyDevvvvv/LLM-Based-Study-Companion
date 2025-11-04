@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Conversation } from "@/types";
+import { Conversation, Message } from "@/types";
 import { useTheme } from "@/hooks/useTheme";
 import { useChat } from "@/hooks/useChat";
 import { useTone } from "@/hooks/useTone";
+import { useChatHistory } from "@/hooks/useChatHistory";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import ChatMessage from "@/components/ChatMessage";
@@ -38,48 +39,78 @@ export default function StudyMind() {
   const { tone, toneMenuOpen, setToneMenuOpen, availableTones, changeTone } = useTone(userId, setMessages);
 
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversation, setCurrentConversation] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>("chat");
   const [ctxText, setCtxText] = useState<string>("");
   const [toast, setToast] = useState<string>("");
 
+  const {
+    conversations,
+    currentConversationId,
+    createConversation,
+    loadConversation,
+    updateConversation,
+    deleteConversation,
+    setCurrentConversationId,
+    generateTitle,
+  } = useChatHistory(userId);
+
   useEffect(() => {
     const savedSidebarState = localStorage.getItem('sidebarOpen');
     setSidebarOpen(savedSidebarState !== 'false');
-    
-    // Mock conversations
-    setConversations([
-      {
-        id: 1,
-        title: "Physics Study Session",
-        lastMessage: "Great! I created flashcards for quantum mechanics...",
-        timestamp: new Date(Date.now() - 3600000)
-      },
-      {
-        id: 2,
-        title: "History Essay Help",
-        lastMessage: "Here's a summary of the Renaissance period...",
-        timestamp: new Date(Date.now() - 7200000)
-      }
-    ]);
   }, []);
+
+  // Initialize with a conversation if none exists
+  useEffect(() => {
+    if (conversations.length === 0 && !currentConversationId) {
+      startNewConversation();
+    }
+  }, [conversations.length, currentConversationId]);
+
+  // Auto-save conversation when messages change
+  useEffect(() => {
+    if (currentConversationId && messages.length > 1) {
+      // Generate title from first user message if it's a new conversation
+      const currentConv = conversations.find(c => c.id === currentConversationId);
+      const shouldUpdateTitle = currentConv && currentConv.title === "New Conversation" && messages.length >= 2;
+      
+      const title = shouldUpdateTitle ? generateTitle(messages) : undefined;
+      updateConversation(currentConversationId, messages, title);
+    }
+  }, [messages, currentConversationId]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
     localStorage.setItem('sidebarOpen', (!sidebarOpen).toString());
   };
 
-  const startNewConversation = () => {
-    setMessages([
-      {
+  const startNewConversation = async () => {
+    const conversationId = await createConversation("New Conversation");
+    if (conversationId) {
+      const initialMessage: Message = {
         id: Date.now(),
         type: 'assistant',
-        content: "Hello! I'm ready to help you study. What would you like to learn today?",
+        content: "Hello! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials, or upload files (PDF, TXT) and I'll help you learn! What would you like to study today?",
         timestamp: new Date()
-      }
-    ]);
-    setCurrentConversation(null);
+      };
+      setMessages([initialMessage]);
+      // Update the conversation with the initial message
+      await updateConversation(conversationId, [initialMessage]);
+    }
+  };
+
+  const handleConversationSelect = async (conversationId: string) => {
+    const loadedMessages = await loadConversation(conversationId);
+    if (loadedMessages) {
+      setMessages(loadedMessages);
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    const success = await deleteConversation(conversationId);
+    if (success && conversationId === currentConversationId) {
+      // Start a new conversation after deleting the current one
+      startNewConversation();
+    }
   };
 
   if (!mounted) return null;
@@ -97,10 +128,11 @@ export default function StudyMind() {
         isDark={isDark}
         sidebarOpen={sidebarOpen}
         conversations={conversations}
-        currentConversation={currentConversation}
+        currentConversation={currentConversationId}
         toggleSidebar={toggleSidebar}
         startNewConversation={startNewConversation}
-        setCurrentConversation={setCurrentConversation}
+        setCurrentConversation={handleConversationSelect}
+        deleteConversation={handleDeleteConversation}
       />
 
       {/* Main Area */}
