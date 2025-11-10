@@ -1,30 +1,16 @@
 [
   {
-    "id": "1761898504097929",
+    "id": "1762689100056595",
     "title": "New Conversation",
     "messages": [
       {
-        "id": 1761898504106,
+        "id": 1762689100074,
         "type": "assistant",
         "content": "Hello! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials, or upload files (PDF, TXT) and I'll help you learn! What would you like to study today?",
-        "timestamp": "2025-10-31T08:15:04.106Z"
+        "timestamp": "2025-11-09T11:51:40.074Z"
       }
     ],
-    "timestamp": "2025-10-31T10:15:04.113222",
-    "lastMessage": "Hello! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials,"
-  },
-  {
-    "id": "1761898678985877",
-    "title": "New Conversation",
-    "messages": [
-      {
-        "id": 1761898678992,
-        "type": "assistant",
-        "content": "Hello! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials, or upload files (PDF, TXT) and I'll help you learn! What would you like to study today?",
-        "timestamp": "2025-10-31T08:17:58.992Z"
-      }
-    ],
-    "timestamp": "2025-10-31T10:17:59.003043",
+    "timestamp": "2025-11-09T13:51:40.087010",
     "lastMessage": "Hello! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials,"
   }
 ]

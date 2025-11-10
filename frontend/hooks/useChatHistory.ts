@@ -7,7 +7,13 @@ const API_BASE_URL = "http://127.0.0.1:5000";
 
 export function useChatHistory(userId: string) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(() => {
+    // Load from localStorage on initialization
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(`currentConversationId_${userId}`);
+    }
+    return null;
+  });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +40,15 @@ export function useChatHistory(userId: string) {
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  // Persist currentConversationId to localStorage
+  useEffect(() => {
+    if (currentConversationId) {
+      localStorage.setItem(`currentConversationId_${userId}`, currentConversationId);
+    } else {
+      localStorage.removeItem(`currentConversationId_${userId}`);
+    }
+  }, [currentConversationId, userId]);
 
   // Create a new conversation
   const createConversation = async (title: string = "New Conversation"): Promise<string | null> => {

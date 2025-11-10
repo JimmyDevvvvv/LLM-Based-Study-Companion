@@ -129,7 +129,7 @@ export default function Sidebar({
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
                       title="Delete conversation"
                     >
                       <Trash2 className="w-4 h-4" />

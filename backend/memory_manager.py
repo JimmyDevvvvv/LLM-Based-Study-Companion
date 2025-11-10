@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-import requests
+import google.generativeai as genai
 from typing import Dict, List, Optional
 import re
 
@@ -44,9 +44,9 @@ class EducatorMemory:
         }
     }
     
-    def __init__(self, memory_file="user_memory.json", ollama_url="http://localhost:11434/api/generate"):
+    def __init__(self, memory_file="user_memory.json", ollama_url=None):
         self.memory_file = memory_file
-        self.ollama_url = ollama_url
+        self.use_gemini = ollama_url is None  # If no Ollama URL provided, use Gemini
         self.ensure_memory_file()
     
     def ensure_memory_file(self):
@@ -91,19 +91,32 @@ Teacher's message: "{message}"
 Respond with ONLY valid JSON, no explanation or additional text:"""
 
         try:
-            resp = requests.post(
-                self.ollama_url,
-                json={
-                    "model": "mistral",
-                    "prompt": extraction_prompt,
-                    "stream": False,
-                    "temperature": 0.2  # Lower temperature for more consistent extraction
-                },
-                timeout=30
-            )
-            resp.raise_for_status()
-            
-            output = resp.json().get("response", "").strip()
+            if self.use_gemini:
+                # Use Gemini API
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(
+                    extraction_prompt,
+                    generation_config={
+                        "temperature": 0.2,
+                        "max_output_tokens": 1024,
+                    }
+                )
+                output = response.text.strip()
+            else:
+                # Fallback to Ollama (if configured)
+                import requests
+                resp = requests.post(
+                    self.ollama_url,
+                    json={
+                        "model": "mistral",
+                        "prompt": extraction_prompt,
+                        "stream": False,
+                        "temperature": 0.2
+                    },
+                    timeout=30
+                )
+                resp.raise_for_status()
+                output = resp.json().get("response", "").strip()
             
             # Extract JSON from response (handle cases where model adds text)
             json_match = re.search(r'\{.*\}', output, re.DOTALL)
@@ -116,10 +129,6 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
                 cleaned_info = self._validate_extraction(extracted_info)
                 return cleaned_info
             
-        except requests.exceptions.Timeout:
-            print("Timeout while extracting user info")
-        except json.JSONDecodeError as e:
-            print(f"JSON decode error: {e}")
         except Exception as e:
             print(f"Error extracting user info: {e}")
         
@@ -152,7 +161,8 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
                 extracted_info[key] = default_structure[key]
         
         # Clean list fields - remove empty strings and duplicates
-        list_fields = ["teaching_subjects", "grade_levels", "teaching_style", "interests", "goals"]
+        list_fields = ["teaching_subjects", "grade_levels", "teaching_style", "interests", "goals",
+                       "future_plans", "upcoming_topics", "planned_activities", "learning_objectives", "next_focus_areas"]
         for field in list_fields:
             if isinstance(extracted_info[field], list):
                 # Remove empty strings and strip whitespace
@@ -186,7 +196,8 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
         changes_made = False
         
         # Merge list fields (remove duplicates, case-insensitive)
-        list_fields = ["teaching_subjects", "grade_levels", "teaching_style", "interests", "goals"]
+        list_fields = ["teaching_subjects", "grade_levels", "teaching_style", "interests", "goals",
+                       "future_plans", "upcoming_topics", "planned_activities", "learning_objectives", "next_focus_areas"]
         
         for field in list_fields:
             if field in new_info and new_info[field]:
@@ -241,6 +252,7 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
         except Exception as e:
             print(f"Error saving memory: {e}")
             # Clean up temp file if it exists
+            temp_file = self.memory_file + ".tmp"
             if os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)

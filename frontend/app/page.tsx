@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Conversation, Message } from "@/types";
 import { useTheme } from "@/hooks/useTheme";
 import { useChat } from "@/hooks/useChat";
@@ -42,6 +42,7 @@ export default function StudyMind() {
   const [activeTab, setActiveTab] = useState<string>("chat");
   const [ctxText, setCtxText] = useState<string>("");
   const [toast, setToast] = useState<string>("");
+  const initializedRef = useRef<boolean>(false);
 
   const {
     conversations,
@@ -59,10 +60,32 @@ export default function StudyMind() {
     setSidebarOpen(savedSidebarState !== 'false');
   }, []);
 
-  // Initialize with a conversation if none exists
+  // Initialize: Load existing conversation or create new one (only once)
   useEffect(() => {
-    if (conversations.length === 0 && !currentConversationId) {
-      startNewConversation();
+    if (initializedRef.current) return;
+    
+    if (conversations.length === 0) {
+      // No conversations exist at all, create first one
+      if (!currentConversationId) {
+        startNewConversation();
+        initializedRef.current = true;
+      }
+    } else {
+      // Conversations loaded from backend
+      if (currentConversationId) {
+        // Load the saved conversation
+        const conversationExists = conversations.find(c => c.id === currentConversationId);
+        if (conversationExists) {
+          handleConversationSelect(currentConversationId);
+        } else {
+          // Saved conversation doesn't exist anymore, load the first one
+          handleConversationSelect(conversations[0].id);
+        }
+      } else {
+        // No saved conversation, load the first available one
+        handleConversationSelect(conversations[0].id);
+      }
+      initializedRef.current = true;
     }
   }, [conversations.length, currentConversationId]);
 
@@ -107,9 +130,17 @@ export default function StudyMind() {
 
   const handleDeleteConversation = async (conversationId: string) => {
     const success = await deleteConversation(conversationId);
-    if (success && conversationId === currentConversationId) {
-      // Start a new conversation after deleting the current one
-      startNewConversation();
+    if (success) {
+      // If we deleted the current conversation
+      if (conversationId === currentConversationId) {
+        // Load another conversation if available, otherwise create new one
+        const remainingConversations = conversations.filter(c => c.id !== conversationId);
+        if (remainingConversations.length > 0) {
+          handleConversationSelect(remainingConversations[0].id);
+        } else {
+          startNewConversation();
+        }
+      }
     }
   };
 

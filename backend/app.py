@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
+import google.generativeai as genai
 from memory_manager import EducatorMemory
 import os
 import json
@@ -17,6 +17,10 @@ from prompts import (
     chat_prompt,
 )
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 try:
     import PyPDF2  # type: ignore
@@ -30,12 +34,41 @@ except Exception:
 app = Flask(__name__)
 CORS(app)
 
-# Ollama API endpoint
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "mistral"
+# Configure Gemini API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    print("⚠️  WARNING: GEMINI_API_KEY not found in environment variables!")
+    print("   Set it with: export GEMINI_API_KEY='your-key-here'")
+else:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("✅ Gemini API configured successfully")
+
+# Model configuration
+MODEL_NAME = "gemini-2.5-pro"  # Fast and free tier friendly
+# Alternative: "gemini-1.5-pro" for better quality (but slower)
 
 # Initialize memory manager
-memory_manager = EducatorMemory()
+memory_manager = EducatorMemory(ollama_url=None)  # Pass None to use Gemini
+
+
+
+
+
+
+
+import google.generativeai as genai
+
+# After genai.configure(api_key=GEMINI_API_KEY)
+print("\n📋 Available models:")
+for model in genai.list_models():
+    if 'generateContent' in model.supported_generation_methods:
+        print(f"  - {model.name}")
+print()
+
+
+
+
+
 
 # Local data directory for saved outputs
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -48,21 +81,55 @@ def _now_ts() -> str:
     return datetime.now().replace(microsecond=0).isoformat().replace(":", "-")
 
 
-def _ollama_generate(prompt: str, temperature: float = 0.6, timeout: int = 120) -> str:
-    """Call local Ollama and return the string response, or raise an error."""
-    resp = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False,
+def _gemini_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 2048) -> str:
+    """
+    Call Gemini API and return the string response, or raise an error.
+    
+    Args:
+        prompt: The prompt to send to Gemini
+        temperature: Controls randomness (0.0-1.0)
+        max_tokens: Maximum tokens in response
+    
+    Returns:
+        Generated text response
+    """
+    try:
+        # Configure generation settings
+        generation_config = {
             "temperature": temperature,
-        },
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    payload = resp.json()
-    return payload.get("response", "").strip()
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": max_tokens,
+        }
+        
+        # Safety settings (adjust as needed)
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+        
+        # Initialize model
+        model = genai.GenerativeModel(
+            model_name=MODEL_NAME,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
+        # Generate content
+        response = model.generate_content(prompt)
+        
+        # Extract text from response
+        if response.text:
+            return response.text.strip()
+        else:
+            # Handle case where response was blocked
+            return "I apologize, but I couldn't generate a response. Please try rephrasing your request."
+            
+    except Exception as e:
+        print(f"Gemini API Error: {str(e)}")
+        raise Exception(f"Failed to generate content: {str(e)}")
 
 
 def _write_text_file(content: str, prefix: str, ext: str = ".md") -> str:
@@ -81,6 +148,7 @@ def _append_jsonl(row: dict, filename: str) -> str:
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
     return path
+
 
 def build_prompt(task, text, user_id=None):
     """Build a context-aware prompt using educator memory."""
@@ -108,6 +176,7 @@ def build_prompt(task, text, user_id=None):
     
     return task_prompts.get(task, f"{tone_instruction}{context}Summarize this text:\n\n{text}")
 
+
 @app.route("/generate", methods=["POST"])
 def generate():
     """Main endpoint for generating AI responses with memory integration."""
@@ -129,28 +198,11 @@ def generate():
     # Build prompt with educator context and tone
     prompt = build_prompt(task, text, user_id)
     
-    # Call Ollama
+    # Call Gemini
     try:
-        resp = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": MODEL_NAME, 
-                "prompt": prompt, 
-                "stream": False,
-                "temperature": 0.7
-            },
-            timeout=120
-        )
-        resp.raise_for_status()
-    except requests.exceptions.Timeout:
-        return jsonify({"error": "Request timed out. Please try again."}), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Failed to connect to Ollama: {str(e)}"}), 500
+        output = _gemini_generate(prompt, temperature=0.7, max_tokens=2048)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
-    payload = resp.json()
-    output = payload.get("response", "").strip()
     
     # Return response with memory summary
     return jsonify({
@@ -178,12 +230,8 @@ def content_create():
             pass
 
         prompt = lecture_content_prompt(topic_or_text, difficulty)  # type: ignore[arg-type]
-        output = _ollama_generate(prompt, temperature=0.5)
+        output = _gemini_generate(prompt, temperature=0.5, max_tokens=3072)
         return jsonify({"content": output})
-    except requests.exceptions.Timeout:
-        return jsonify({"error": "Request timed out"}), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Failed to connect to local model: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -196,7 +244,7 @@ def content_slide():
         return jsonify({"error": "No content provided"}), 400
     try:
         prompt = slide_content_prompt(markdown_content)
-        output = _ollama_generate(prompt, temperature=0.5)
+        output = _gemini_generate(prompt, temperature=0.5, max_tokens=2048)
         return jsonify({"slides": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -213,7 +261,7 @@ def content_adjust():
         return jsonify({"error": "No content provided"}), 400
     try:
         prompt = adjust_content_prompt(text, action)  # type: ignore[arg-type]
-        output = _ollama_generate(prompt, temperature=0.4)
+        output = _gemini_generate(prompt, temperature=0.4, max_tokens=2048)
         return jsonify({"content": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -247,7 +295,7 @@ def grade():
         return jsonify({"error": "Both question and answer are required"}), 400
     try:
         prompt = grading_prompt(question, answer, is_code)
-        raw = _ollama_generate(prompt, temperature=0.2, timeout=90)
+        raw = _gemini_generate(prompt, temperature=0.2, max_tokens=1024)
 
         # Try to parse JSON from model output
         parsed = {}
@@ -308,7 +356,7 @@ def quiz():
 
     try:
         prompt = quiz_prompt(topic, difficulty, num_questions, qtype)  # type: ignore[arg-type]
-        output = _ollama_generate(prompt, temperature=0.5)
+        output = _gemini_generate(prompt, temperature=0.5, max_tokens=2048)
         return jsonify({"quiz": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -351,7 +399,7 @@ def admin_template():
         return jsonify({"error": "template must be one of: reminder_email, course_summary, grading_rubric"}), 400
     try:
         prompt = admin_prompt(template, variables)
-        output = _ollama_generate(prompt, temperature=0.4)
+        output = _gemini_generate(prompt, temperature=0.4, max_tokens=1024)
         return jsonify({"output": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -368,7 +416,7 @@ def ideas():
         return jsonify({"error": "No topic provided"}), 400
     try:
         prompt = ideas_prompt(topic, level, variations)  # type: ignore[arg-type]
-        output = _ollama_generate(prompt, temperature=0.6)
+        output = _gemini_generate(prompt, temperature=0.6, max_tokens=2048)
         return jsonify({"ideas": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -383,7 +431,7 @@ def help_chat():
         return jsonify({"error": "No question provided"}), 400
     try:
         prompt = help_prompt(question)
-        answer = _ollama_generate(prompt, temperature=0.5)
+        answer = _gemini_generate(prompt, temperature=0.5, max_tokens=1024)
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -412,13 +460,9 @@ def chat():
         prompt = chat_prompt(message, history)
         
         # Generate response
-        response = _ollama_generate(prompt, temperature=0.7, timeout=120)
+        response = _gemini_generate(prompt, temperature=0.7, max_tokens=2048)
         
         return jsonify({"response": response})
-    except requests.exceptions.Timeout:
-        return jsonify({"error": "Request timed out. Please try again."}), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Failed to connect to Ollama: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -477,10 +521,6 @@ def _extract_text_from_pdf(file_path: str) -> str:
     
     if not extracted_text:
         print(f"WARNING: No text could be extracted from PDF: {file_path}")
-        print("This could be because:")
-        print("- The PDF contains only images/scanned content (needs OCR)")
-        print("- The PDF is encrypted or protected")
-        print("- The PDF structure is not standard")
     
     return extracted_text
 
@@ -517,15 +557,15 @@ def upload_file():
             extraction_status = "failed"
             print(f"⚠️ WARNING: Extraction resulted in {len(text)} characters (likely failed)")
         else:
-            print(f"✓ Successfully extracted {len(text)} characters")
+            print(f"✅ Successfully extracted {len(text)} characters")
     else:
         print("File type: Text - Reading directly...")
         try:
             with open(save_path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read()
-            print(f"✓ Successfully read {len(text)} characters")
+            print(f"✅ Successfully read {len(text)} characters")
         except Exception as e:
-            print(f"✗ Error reading text file: {e}")
+            print(f"❌ Error reading text file: {e}")
             extraction_status = "failed"
             text = ""
     
@@ -537,6 +577,7 @@ def upload_file():
         "extraction_status": extraction_status,
         "char_count": len(text)
     })
+
 
 @app.route("/tone/<user_id>", methods=["GET"])
 def get_tone(user_id):
@@ -550,6 +591,7 @@ def get_tone(user_id):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/tone/<user_id>", methods=["POST"])
 def set_tone(user_id):
@@ -582,6 +624,7 @@ def set_tone(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/memory/<user_id>", methods=["GET"])
 def get_memory(user_id):
     """Retrieve memory for a specific user."""
@@ -595,6 +638,7 @@ def get_memory(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/memory/<user_id>", methods=["DELETE"])
 def clear_memory(user_id):
     """Clear memory for a specific user."""
@@ -603,6 +647,7 @@ def clear_memory(user_id):
         return jsonify({"message": f"Memory cleared for user {user_id}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/memory/<user_id>", methods=["PUT"])
 def update_memory_manual(user_id):
@@ -619,10 +664,16 @@ def update_memory_manual(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "healthy", "model": MODEL_NAME})
+    api_status = "configured" if GEMINI_API_KEY else "missing"
+    return jsonify({
+        "status": "healthy",
+        "model": MODEL_NAME,
+        "api_key_status": api_status
+    })
 
 
 # -------- Conversation Management --------
@@ -789,5 +840,7 @@ def get_file():
     except Exception as e:
         return jsonify({"error": f"Failed to read file: {str(e)}"}), 500
 
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.getenv("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)
