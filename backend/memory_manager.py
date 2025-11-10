@@ -5,6 +5,7 @@ import google.generativeai as genai
 from typing import Dict, List, Optional
 import re
 
+
 class EducatorMemory:
     """Manages persistent memory for educator-specific context and preferences."""
     
@@ -44,13 +45,26 @@ class EducatorMemory:
         }
     }
     
-    def __init__(self, memory_file="user_memory.json", ollama_url=None):
+    def __init__(self, db_manager=None, memory_file="user_memory.json", ollama_url=None):
+        """
+        Initialize memory manager with optional database support.
+        
+        Args:
+            db_manager: DatabaseManager instance (if using MongoDB)
+            memory_file: Fallback JSON file for file-based storage
+            ollama_url: Deprecated, kept for backwards compatibility
+        """
+        self.db = db_manager  # Use database if available
         self.memory_file = memory_file
-        self.use_gemini = ollama_url is None  # If no Ollama URL provided, use Gemini
-        self.ensure_memory_file()
+        self.use_gemini = True  # Always use Gemini for extraction
+        
+        # Only create file if no database
+        if not self.db:
+            self.ensure_memory_file()
+            print("⚠️  Using file-based memory storage (fallback mode)")
     
     def ensure_memory_file(self):
-        """Create memory file if it doesn't exist."""
+        """Create memory file if it doesn't exist (fallback mode)."""
         if not os.path.exists(self.memory_file):
             with open(self.memory_file, 'w') as f:
                 json.dump({}, f)
@@ -91,32 +105,16 @@ Teacher's message: "{message}"
 Respond with ONLY valid JSON, no explanation or additional text:"""
 
         try:
-            if self.use_gemini:
-                # Use Gemini API
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(
-                    extraction_prompt,
-                    generation_config={
-                        "temperature": 0.2,
-                        "max_output_tokens": 1024,
-                    }
-                )
-                output = response.text.strip()
-            else:
-                # Fallback to Ollama (if configured)
-                import requests
-                resp = requests.post(
-                    self.ollama_url,
-                    json={
-                        "model": "mistral",
-                        "prompt": extraction_prompt,
-                        "stream": False,
-                        "temperature": 0.2
-                    },
-                    timeout=30
-                )
-                resp.raise_for_status()
-                output = resp.json().get("response", "").strip()
+            # Use Gemini API for extraction
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(
+                extraction_prompt,
+                generation_config={
+                    "temperature": 0.2,
+                    "max_output_tokens": 1024,
+                }
+            )
+            output = response.text.strip()
             
             # Extract JSON from response (handle cases where model adds text)
             json_match = re.search(r'\{.*\}', output, re.DOTALL)
@@ -226,54 +224,71 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
         return existing_memory
     
     def save_memory(self, user_id: str, memory: Dict):
-        """Write user memory to disk with error handling."""
-        try:
-            # Load all user memories
-            all_memories = {}
-            if os.path.exists(self.memory_file):
-                with open(self.memory_file, 'r') as f:
-                    try:
-                        all_memories = json.load(f)
-                    except json.JSONDecodeError:
-                        print("Warning: Corrupted memory file, creating new one")
-                        all_memories = {}
-            
-            # Update specific user's memory
-            all_memories[user_id] = memory
-            
-            # Save back with atomic write (write to temp file first)
-            temp_file = self.memory_file + ".tmp"
-            with open(temp_file, 'w') as f:
-                json.dump(all_memories, f, indent=2)
-            
-            # Atomic rename
-            os.replace(temp_file, self.memory_file)
+        """Write user memory to database or file."""
+        if self.db:
+            # Use database
+            try:
+                self.db.save_memory(user_id, memory)
+            except Exception as e:
+                print(f"Error saving memory to database: {e}")
+        else:
+            # Fallback to file storage
+            try:
+                # Load all user memories
+                all_memories = {}
+                if os.path.exists(self.memory_file):
+                    with open(self.memory_file, 'r') as f:
+                        try:
+                            all_memories = json.load(f)
+                        except json.JSONDecodeError:
+                            print("Warning: Corrupted memory file, creating new one")
+                            all_memories = {}
                 
-        except Exception as e:
-            print(f"Error saving memory: {e}")
-            # Clean up temp file if it exists
-            temp_file = self.memory_file + ".tmp"
-            if os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except:
-                    pass
+                # Update specific user's memory
+                all_memories[user_id] = memory
+                
+                # Save back with atomic write
+                temp_file = self.memory_file + ".tmp"
+                with open(temp_file, 'w') as f:
+                    json.dump(all_memories, f, indent=2)
+                
+                # Atomic rename
+                os.replace(temp_file, self.memory_file)
+                    
+            except Exception as e:
+                print(f"Error saving memory to file: {e}")
+                # Clean up temp file if it exists
+                temp_file = self.memory_file + ".tmp"
+                if os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                    except:
+                        pass
     
     def load_memory(self, user_id: str) -> Dict:
-        """Load memory for a specific user."""
-        try:
-            if not os.path.exists(self.memory_file):
+        """Load memory for a specific user from database or file."""
+        if self.db:
+            # Use database
+            try:
+                return self.db.load_memory(user_id)
+            except Exception as e:
+                print(f"Error loading memory from database: {e}")
                 return {}
-            
-            with open(self.memory_file, 'r') as f:
-                all_memories = json.load(f)
-                return all_memories.get(user_id, {})
-        except json.JSONDecodeError:
-            print(f"Error: Corrupted memory file")
-            return {}
-        except Exception as e:
-            print(f"Error loading memory: {e}")
-            return {}
+        else:
+            # Fallback to file storage
+            try:
+                if not os.path.exists(self.memory_file):
+                    return {}
+                
+                with open(self.memory_file, 'r') as f:
+                    all_memories = json.load(f)
+                    return all_memories.get(user_id, {})
+            except json.JSONDecodeError:
+                print(f"Error: Corrupted memory file")
+                return {}
+            except Exception as e:
+                print(f"Error loading memory from file: {e}")
+                return {}
     
     def build_memory_context(self, memory: Dict) -> str:
         """Generate a natural language summary of educator memory for the prompt."""
