@@ -69,17 +69,16 @@ else:
     db = None
 
 # Configure Auth
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-if SUPABASE_URL and SUPABASE_KEY:
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-this-in-production")
+if db:
     try:
-        auth_manager = AuthManager(SUPABASE_URL, SUPABASE_KEY)
+        auth_manager = AuthManager(JWT_SECRET, db)
         print("✅ Auth manager initialized")
     except Exception as e:
         print(f"⚠️  Auth initialization failed: {e}")
         auth_manager = None
 else:
-    print("⚠️  No Supabase credentials - auth features disabled")
+    print("⚠️  No database - auth features disabled")
     auth_manager = None
 
 # Initialize memory manager with DB support
@@ -169,6 +168,67 @@ def _extract_text_from_pdf(file_path: str) -> str:
 
 
 # ==================== AUTH ENDPOINTS ====================
+
+@app.route("/auth/signup", methods=["POST"])
+def signup():
+    """Register a new user"""
+    data = request.json or {}
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
+    
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+    
+    if not auth_manager:
+        return jsonify({"error": "Auth not configured"}), 503
+    
+    try:
+        result = auth_manager.register_user(email, password)
+        if not result:
+            return jsonify({"error": "User already exists"}), 409
+        
+        return jsonify({
+            "user": {
+                "id": result['user_id'],
+                "email": result['email']
+            },
+            "token": result['token']
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/auth/login", methods=["POST"])
+def login():
+    """Login a user"""
+    data = request.json or {}
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
+    
+    if not auth_manager:
+        return jsonify({"error": "Auth not configured"}), 503
+    
+    try:
+        result = auth_manager.login_user(email, password)
+        if not result:
+            return jsonify({"error": "Invalid email or password"}), 401
+        
+        return jsonify({
+            "user": {
+                "id": result['user_id'],
+                "email": result['email']
+            },
+            "token": result['token']
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/auth/user", methods=["GET"])
 @require_auth

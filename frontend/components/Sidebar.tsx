@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { BookOpen, User, Plus, MessageSquare, X, Trash2 } from "lucide-react";
+import { BookOpen, User, Plus, MessageSquare, X, Trash2, LogIn, LogOut } from "lucide-react";
 import { Conversation } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   isDark: boolean;
@@ -13,6 +14,8 @@ interface SidebarProps {
   startNewConversation: () => void;
   setCurrentConversation: (id: string) => void;
   deleteConversation?: (id: string) => void;
+  user?: any;
+  onShowAuth: () => void;
 }
 
 export default function Sidebar({
@@ -23,9 +26,19 @@ export default function Sidebar({
   toggleSidebar,
   startNewConversation,
   setCurrentConversation,
-  deleteConversation
+  deleteConversation,
+  user,
+  onShowAuth
 }: SidebarProps) {
   const [hoveredConv, setHoveredConv] = useState<string | null>(null);
+  const { signOut, isAuthenticated } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    // Optionally reload or redirect
+    window.location.reload();
+  };
+
   return (
     <>
       {/* Overlay for mobile sidebar */}
@@ -143,20 +156,37 @@ export default function Sidebar({
 
         {/* User Section */}
         <div className={`p-4 border-t ${isDark ? 'border-gray-800' : 'border-gray-700'} backdrop-blur-sm`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 text-sm text-gray-300">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="font-medium">User</p>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-gray-400">Online</span>
+          {isAuthenticated && user ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-sm">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate text-gray-200">{user.email}</p>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-gray-400">Online</span>
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={handleSignOut}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors group"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-400 transition-colors" />
+              </button>
             </div>
-          </div>
+          ) : (
+            <button
+              onClick={onShowAuth}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30"
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="font-semibold">Sign In / Sign Up</span>
+            </button>
+          )}
         </div>
       </div>
     </>

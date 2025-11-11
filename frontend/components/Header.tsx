@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Menu, Star, Zap, ChevronDown, Check } from "lucide-react";
+import { User } from "@/utils/authClient";
 
 interface HeaderProps {
   isDark: boolean;
@@ -13,6 +14,8 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   setToneMenuOpen: (open: boolean) => void;
   changeTone: (tone: string) => void;
+  user: User | null;
+  onShowAuth: () => void;
 }
 
 export default function Header({
@@ -24,7 +27,9 @@ export default function Header({
   toggleSidebar,
   setActiveTab,
   setToneMenuOpen,
-  changeTone
+  changeTone,
+  user,
+  onShowAuth
 }: HeaderProps) {
   const tabs = [
     { key: 'chat', label: 'Chat' },

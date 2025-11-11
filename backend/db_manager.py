@@ -41,9 +41,28 @@ class DatabaseManager:
         self.users.insert_one(user)
         return user
     
+    def create_user_with_password(self, user_id: str, email: str, password_hash: str, metadata: Dict = None) -> Dict:
+        """Create a new user with password"""
+        user = {
+            'user_id': user_id,
+            'email': email,
+            'password': password_hash,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'metadata': metadata or {},
+            'role': 'user'
+        }
+        
+        self.users.insert_one(user)
+        return user
+    
     def get_user(self, user_id: str) -> Optional[Dict]:
         """Get user by ID"""
         return self.users.find_one({'user_id': user_id})
+    
+    def get_user_by_email(self, email: str) -> Optional[Dict]:
+        """Get user by email"""
+        return self.users.find_one({'email': email})
     
     def update_user(self, user_id: str, updates: Dict) -> bool:
         """Update user data"""

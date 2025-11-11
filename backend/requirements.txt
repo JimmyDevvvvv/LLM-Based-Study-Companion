@@ -1,6 +1,10 @@
 flask
 flask-cors
-openai
-requests
+google-generativeai
+pymongo
+pyjwt
+bcrypt
+python-dotenv
 PyPDF2
 pdfplumber
+gunicorn

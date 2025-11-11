@@ -1,40 +1,59 @@
 """
 Authentication Manager for StudyMind AI
-Handles Supabase authentication and JWT verification
+Handles custom JWT-based authentication
 """
 
-from supabase import create_client, Client
 from functools import wraps
 from flask import request, jsonify
 import jwt
+import bcrypt
 import os
+from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 
 class AuthManager:
-    """Manages authentication using Supabase"""
+    """Manages authentication using JWT tokens"""
     
-    def __init__(self, supabase_url: str, supabase_key: str):
-        """Initialize Supabase client"""
-        self.supabase: Client = create_client(supabase_url, supabase_key)
-        self.jwt_secret = supabase_key  # Use anon key for JWT verification
+    def __init__(self, jwt_secret: str, db_manager=None):
+        """Initialize auth manager with JWT secret"""
+        self.jwt_secret = jwt_secret
+        self.db_manager = db_manager
         print("✅ Auth manager initialized")
+    
+    def hash_password(self, password: str) -> str:
+        """Hash a password using bcrypt"""
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    
+    def verify_password(self, password: str, hashed: str) -> bool:
+        """Verify a password against its hash"""
+        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    
+    def create_token(self, user_id: str, email: str, role: str = 'user') -> str:
+        """Create a JWT token for a user"""
+        payload = {
+            'sub': user_id,
+            'email': email,
+            'role': role,
+            'iat': datetime.utcnow(),
+            'exp': datetime.utcnow() + timedelta(days=30)  # Token expires in 30 days
+        }
+        return jwt.encode(payload, self.jwt_secret, algorithm='HS256')
     
     def verify_token(self, token: str) -> Optional[Dict]:
         """Verify JWT token and return user data"""
         try:
-            # Decode JWT
             payload = jwt.decode(
                 token,
                 self.jwt_secret,
-                algorithms=['HS256'],
-                options={"verify_signature": False}  # Supabase handles signature
+                algorithms=['HS256']
             )
             
             return {
                 'user_id': payload.get('sub'),
                 'email': payload.get('email'),
-                'role': payload.get('role')
+                'role': payload.get('role', 'user')
             }
         except jwt.ExpiredSignatureError:
             print("Token expired")
@@ -43,19 +62,50 @@ class AuthManager:
             print(f"Invalid token: {e}")
             return None
     
-    def get_user_from_token(self, token: str) -> Optional[Dict]:
-        """Get full user data from token"""
-        try:
-            user_response = self.supabase.auth.get_user(token)
-            if user_response and user_response.user:
-                return {
-                    'user_id': user_response.user.id,
-                    'email': user_response.user.email,
-                    'metadata': user_response.user.user_metadata
-                }
-        except Exception as e:
-            print(f"Error getting user: {e}")
+    def register_user(self, email: str, password: str) -> Optional[Dict]:
+        """Register a new user"""
+        if not self.db_manager:
+            return None
+        
+        # Check if user already exists
+        existing_user = self.db_manager.get_user_by_email(email)
+        if existing_user:
+            return None
+        
+        # Hash password and create user
+        hashed_password = self.hash_password(password)
+        user_id = f"user_{datetime.now().timestamp()}".replace('.', '')
+        
+        user = self.db_manager.create_user_with_password(user_id, email, hashed_password)
+        if user:
+            token = self.create_token(user_id, email)
+            return {
+                'user_id': user_id,
+                'email': email,
+                'token': token
+            }
         return None
+    
+    def login_user(self, email: str, password: str) -> Optional[Dict]:
+        """Login a user"""
+        if not self.db_manager:
+            return None
+        
+        user = self.db_manager.get_user_by_email(email)
+        if not user:
+            return None
+        
+        # Verify password
+        if not self.verify_password(password, user.get('password', '')):
+            return None
+        
+        # Create token
+        token = self.create_token(user['user_id'], user['email'], user.get('role', 'user'))
+        return {
+            'user_id': user['user_id'],
+            'email': user['email'],
+            'token': token
+        }
 
 
 def require_auth(f):

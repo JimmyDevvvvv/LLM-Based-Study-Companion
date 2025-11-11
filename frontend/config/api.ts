@@ -54,6 +54,22 @@ export const API_ENDPOINTS = {
  */
 export const apiUtils = {
   /**
+   * Get auth headers (if user is logged in)
+   */
+  getAuthHeaders(accessToken?: string | null): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
+    return headers;
+  },
+
+  /**
    * Check if API is healthy
    */
   async checkHealth(): Promise<boolean> {
@@ -68,15 +84,12 @@ export const apiUtils = {
   },
 
   /**
-   * Generic POST request helper
+   * Generic POST request helper with optional auth
    */
-  async post<T = any>(endpoint: string, body: any): Promise<T> {
+  async post<T = any>(endpoint: string, body: any, accessToken?: string | null): Promise<T> {
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: this.getAuthHeaders(accessToken),
       body: JSON.stringify(body),
     });
 
@@ -88,13 +101,17 @@ export const apiUtils = {
   },
 
   /**
-   * Generic GET request helper
+   * Generic GET request helper with optional auth
    */
-  async get<T = any>(endpoint: string): Promise<T> {
+  async get<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
+    const headers: HeadersInit = { 'Accept': 'application/json' };
+    
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(endpoint, {
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -105,14 +122,59 @@ export const apiUtils = {
   },
 
   /**
-   * File upload helper
+   * Generic PUT request helper with optional auth
    */
-  async uploadFile(file: File): Promise<any> {
+  async put<T = any>(endpoint: string, body: any, accessToken?: string | null): Promise<T> {
+    const response = await fetch(endpoint, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(accessToken),
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Generic DELETE request helper with optional auth
+   */
+  async delete<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
+    const headers: HeadersInit = { 'Accept': 'application/json' };
+    
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  /**
+   * File upload helper with optional auth
+   */
+  async uploadFile(file: File, accessToken?: string | null): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
 
+    const headers: HeadersInit = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const response = await fetch(API_ENDPOINTS.upload, {
       method: 'POST',
+      headers,
       body: formData,
     });
 
