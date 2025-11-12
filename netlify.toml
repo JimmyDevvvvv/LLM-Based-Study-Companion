@@ -27,11 +27,7 @@
   force = false
 
 [[plugins]]
-  package = "@netlify/plugin-nextjs@5.14.5"
-  [plugins.inputs]
-    buildCommand = "npm run build"
-    publish = "frontend/.next"
-    functions = "netlify/functions"
+  package = "@netlify/plugin-nextjs"
 
 [dev]
   command = "cd frontend && npm run dev"
