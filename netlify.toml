@@ -1,7 +1,6 @@
 [build]
-  command = "npm ci && npm run build"
-  publish = ".next"
-  base = "frontend"
+  command = "cd frontend && npm ci && npm run build"
+  publish = "frontend/.next"
 
 [build.environment]
   # Node.js version
@@ -26,10 +25,10 @@
   # Enable Next.js standalone output
   NETLIFY_NEXT_PLUGIN_SKIP = "false"
 
-# Configure functions
+# Configure functions - from repo root (no base directory)
 [functions]
-  directory = "../netlify/functions"
-  included_files = ["../backend/**"]
+  directory = "netlify/functions"
+  included_files = ["backend/**"]
   
   # Python functions don't use node_bundler
   # node_bundler = "esbuild"
