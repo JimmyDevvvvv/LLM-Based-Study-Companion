@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Section from "./Section";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function AdminTools({ isDark }: { isDark: boolean }) {
   const [template, setTemplate] = useState<string>('reminder_email');
@@ -23,7 +24,7 @@ export default function AdminTools({ isDark }: { isDark: boolean }) {
     if (template === 'course_summary') { variables.week = week; variables.topics = topics; }
     if (template === 'grading_rubric') { variables.assignment = assignment; variables.criteria = criteria; }
     try {
-      const res = await fetch('http://127.0.0.1:5000/admin/template', {
+      const res = await fetch(API_ENDPOINTS.adminTemplate, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ template, variables })
       });
@@ -35,7 +36,7 @@ export default function AdminTools({ isDark }: { isDark: boolean }) {
   const save = async () => {
     if (!output.trim()) return;
     try {
-      const res = await fetch('http://127.0.0.1:5000/content/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: output, name: 'admin', as_markdown: true }) });
+      const res = await fetch(API_ENDPOINTS.contentSave, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: output, name: 'admin', as_markdown: true }) });
       const data = await res.json();
       if (data && data.saved_path) alert(`Saved: ${data.saved_path}`);
     } catch {}

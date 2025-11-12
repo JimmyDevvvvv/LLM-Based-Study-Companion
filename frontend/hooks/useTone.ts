@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Message } from "@/types";
+import { API_ENDPOINTS } from "@/config/api";
 
 export function useTone(userId: string, setMessages: React.Dispatch<React.SetStateAction<Message[]>>) {
   const [tone, setTone] = useState<string>("professional");
@@ -21,7 +22,7 @@ export function useTone(userId: string, setMessages: React.Dispatch<React.SetSta
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:5000/tone/${userId}`);
+        const res = await fetch(API_ENDPOINTS.tone(userId));
         if (res.ok) {
           const data = await res.json();
           if (data && data.tone) setTone(data.tone);
@@ -36,7 +37,7 @@ export function useTone(userId: string, setMessages: React.Dispatch<React.SetSta
     setToneMenuOpen(false);
     if (newTone === tone) return;
     try {
-      const res = await fetch(`http://127.0.0.1:5000/tone/${userId}`, {
+      const res = await fetch(API_ENDPOINTS.tone(userId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tone: newTone })

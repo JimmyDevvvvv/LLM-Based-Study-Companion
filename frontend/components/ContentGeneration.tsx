@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { FileText, Presentation, Sparkles, Save, Minimize2, Maximize2 } from "lucide-react";
 import Section from "./Section";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface ContentGenerationProps {
   isDark: boolean;
@@ -26,7 +27,7 @@ export default function ContentGeneration({ isDark, userId, ctxText, setCtxText,
     setCgSlides("");
     try {
       const combined = ctxText.trim() ? `${cgInput}\n\nContext:\n${ctxText}` : cgInput;
-      const res = await fetch("http://127.0.0.1:5000/content/create", {
+      const res = await fetch(API_ENDPOINTS.contentCreate, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -58,7 +59,7 @@ export default function ContentGeneration({ isDark, userId, ctxText, setCtxText,
     if (!cgOutput.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:5000/content/slide", {
+      const res = await fetch(API_ENDPOINTS.contentSlide, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -91,7 +92,7 @@ export default function ContentGeneration({ isDark, userId, ctxText, setCtxText,
     if (!base.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:5000/content/adjust", {
+      const res = await fetch(API_ENDPOINTS.contentAdjust, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: base, action })
@@ -110,7 +111,7 @@ export default function ContentGeneration({ isDark, userId, ctxText, setCtxText,
     if (!base.trim()) return;
     setCgSaving(true);
     try {
-      const res = await fetch("http://127.0.0.1:5000/content/save", {
+      const res = await fetch(API_ENDPOINTS.contentSave, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: base, name: "lecture", as_markdown: true })

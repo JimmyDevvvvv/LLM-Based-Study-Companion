@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { HelpCircle, Copy, Save, Sparkles } from "lucide-react";
 import Section from "./Section";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface QuizGeneratorProps {
   isDark: boolean;
@@ -23,7 +24,7 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
     setLoading(true);
     try {
       const combinedTopic = ctxText.trim() ? `${qzTopic} (use this context if helpful)\n\n${ctxText}` : qzTopic;
-      const res = await fetch("http://127.0.0.1:5000/quiz", {
+      const res = await fetch(API_ENDPOINTS.quiz, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: combinedTopic, difficulty: qzDifficulty, type: qzType, count: qzCount })
@@ -109,7 +110,7 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
                     </button>
                     <button onClick={async () => {
                       try {
-                        const res = await fetch('http://127.0.0.1:5000/content/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: qzOutput, name: 'quiz', as_markdown: true }) });
+                        const res = await fetch(API_ENDPOINTS.contentSave, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: qzOutput, name: 'quiz', as_markdown: true }) });
                         const data = await res.json();
                         if (data && data.saved_path) setToast(`Saved: ${data.saved_path}`);
                       } catch {}

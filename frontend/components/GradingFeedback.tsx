@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { GradingResult } from "@/types";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface GradingFeedbackProps {
   isDark: boolean;
@@ -19,7 +20,7 @@ export default function GradingFeedback({ isDark }: GradingFeedbackProps) {
     if (!grQuestion.trim() || !grAnswer.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:5000/grade", {
+      const res = await fetch(API_ENDPOINTS.grade, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

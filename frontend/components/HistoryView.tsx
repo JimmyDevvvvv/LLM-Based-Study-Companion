@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Section from "./Section";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function HistoryView({ isDark }: { isDark: boolean }) {
   const [items, setItems] = useState<{ type: string; name: string }[]>([]);
@@ -9,7 +10,7 @@ export default function HistoryView({ isDark }: { isDark: boolean }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('http://127.0.0.1:5000/history');
+        const res = await fetch(API_ENDPOINTS.history);
         const data = await res.json();
         setItems(data.items || []); setGradingEntries(data.grading_entries || 0);
       } catch {}

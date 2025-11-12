@@ -5,6 +5,8 @@
  * Resolve API base URL so Netlify production hits the bundled function
  * while local development keeps using the Flask server.
  */
+const LOCAL_API_PORT = process.env.NEXT_PUBLIC_API_PORT?.trim() || '5000';
+
 const resolveApiBaseUrl = (): string => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (envUrl) {
@@ -12,9 +14,19 @@ const resolveApiBaseUrl = (): string => {
   }
 
   if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return 'http://127.0.0.1:5000';
+    const { protocol, hostname } = window.location;
+    const normalizedHost = hostname?.toLowerCase();
+    const isLoopbackHost =
+      normalizedHost === 'localhost' ||
+      normalizedHost === '127.0.0.1' ||
+      normalizedHost === '::1';
+    const isPrivateNetworkHost =
+      /^10\./.test(hostname) ||
+      /^192\.168\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+
+    if (isLoopbackHost || isPrivateNetworkHost) {
+      return `${protocol}//${hostname}:${LOCAL_API_PORT}`;
     }
   }
 
@@ -28,6 +40,13 @@ export const API_BASE_URL = resolveApiBaseUrl();
  * API Endpoints
  */
 export const API_ENDPOINTS = {
+  // Auth
+  auth: {
+    signup: `${API_BASE_URL}/auth/signup`,
+    login: `${API_BASE_URL}/auth/login`,
+    logout: `${API_BASE_URL}/auth/logout`,
+  },
+
   // Health & Status
   health: `${API_BASE_URL}/health`,
   

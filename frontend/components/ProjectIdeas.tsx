@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Section from "./Section";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function ProjectIdeas({ isDark }: { isDark: boolean }) {
   const [topic, setTopic] = useState<string>('Data Structures');
@@ -14,7 +15,7 @@ export default function ProjectIdeas({ isDark }: { isDark: boolean }) {
     if (!topic.trim()) return;
     setLoading(true); setIdeas('');
     try {
-      const res = await fetch('http://127.0.0.1:5000/ideas', {
+      const res = await fetch(API_ENDPOINTS.ideas, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, level, variations })
       });
@@ -26,7 +27,7 @@ export default function ProjectIdeas({ isDark }: { isDark: boolean }) {
   const save = async () => {
     if (!ideas.trim()) return;
     try {
-      const res = await fetch('http://127.0.0.1:5000/content/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: ideas, name: 'ideas', as_markdown: true }) });
+      const res = await fetch(API_ENDPOINTS.contentSave, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: ideas, name: 'ideas', as_markdown: true }) });
       const data = await res.json();
       if (data && data.saved_path) alert(`Saved: ${data.saved_path}`);
     } catch {}

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Section from "./Section";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function HelpMentor({ isDark }: { isDark: boolean }) {
   const [q, setQ] = useState<string>('How do I generate quizzes?');
@@ -10,7 +11,7 @@ export default function HelpMentor({ isDark }: { isDark: boolean }) {
   const ask = async () => {
     if (!q.trim()) return; setLoading(true); setA('');
     try {
-      const res = await fetch('http://127.0.0.1:5000/help', {
+      const res = await fetch(API_ENDPOINTS.help, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q })
       });
       const data = await res.json(); setA(data.answer || '');

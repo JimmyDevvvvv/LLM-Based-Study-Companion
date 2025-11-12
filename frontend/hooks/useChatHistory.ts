@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Conversation, Message } from "@/types";
-
-const API_BASE_URL = "http://127.0.0.1:5000";
+import { API_ENDPOINTS } from "@/config/api";
 
 export function useChatHistory(userId: string) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -21,7 +20,7 @@ export function useChatHistory(userId: string) {
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/conversations/${userId}`);
+      const response = await fetch(API_ENDPOINTS.conversations(userId));
       if (!response.ok) {
         throw new Error("Failed to load conversations");
       }
@@ -53,7 +52,7 @@ export function useChatHistory(userId: string) {
   // Create a new conversation
   const createConversation = async (title: string = "New Conversation"): Promise<string | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/conversations/${userId}`, {
+      const response = await fetch(API_ENDPOINTS.conversations(userId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
@@ -80,7 +79,7 @@ export function useChatHistory(userId: string) {
   // Load a specific conversation
   const loadConversation = async (conversationId: string): Promise<Message[] | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/conversations/${userId}/${conversationId}`);
+      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId));
       if (!response.ok) {
         throw new Error("Failed to load conversation");
       }
@@ -122,7 +121,7 @@ export function useChatHistory(userId: string) {
         isError: msg.isError,
       }));
 
-      const response = await fetch(`${API_BASE_URL}/conversations/${userId}/${conversationId}`, {
+      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -156,7 +155,7 @@ export function useChatHistory(userId: string) {
   // Delete a conversation
   const deleteConversation = async (conversationId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/conversations/${userId}/${conversationId}`, {
+      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId), {
         method: "DELETE",
       });
       

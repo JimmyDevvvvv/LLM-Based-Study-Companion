@@ -1,7 +1,7 @@
 // Custom Authentication Client for StudyMind AI
 // Replaces Supabase with custom backend authentication
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { API_ENDPOINTS } from '@/config/api';
 
 export interface User {
   id: string;
@@ -67,7 +67,7 @@ class AuthClient {
 
   async signUp(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${API_URL}/auth/signup`, {
+      const response = await fetch(API_ENDPOINTS.auth.signup, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ class AuthClient {
 
   async signIn(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(API_ENDPOINTS.auth.login, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
