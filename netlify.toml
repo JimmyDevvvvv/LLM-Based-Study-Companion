@@ -34,7 +34,12 @@
   # node_bundler = "esbuild"
   # external_node_modules = ["@next/swc-wasm-nodejs"]
 
+# Next.js plugin - must be first
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
 # API redirects - MUST come before catch-all redirect
+# Use 200 status to proxy, not redirect
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
@@ -46,10 +51,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Next.js plugin
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
 
 # Development server settings
 [dev]
