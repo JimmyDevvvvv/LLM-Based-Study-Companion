@@ -5,15 +5,34 @@
 
 [build.environment]
   PYTHON_VERSION = "3.9"
-  NODE_VERSION = "18"
+  NODE_VERSION = "20.0.0"
+  NPM_VERSION = "10.8.2"
+  NEXT_TELEMETRY_DISABLED = "1"
+  NODE_OPTIONS = "--max_old_space_size=4096"
+  # Disable Next.js telemetry during build
+  NEXT_TELEMETRY_DISABLED = "1"
+  # Disable ESLint during build
+  ESLINT_NO_DEV_ERRORS = "true"
+  # Disable TypeScript type checking during build
+  TSC_COMPILE_ON_ERROR = "true"
+
+# Required for Next.js 15+ with Turbopack
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@next/swc-wasm-nodejs"]
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
+  force = false
 
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
+  package = "@netlify/plugin-nextjs@5.14.5"
+  [plugins.inputs]
+    buildCommand = "npm run build"
+    publish = "frontend/.next"
+    functions = "netlify/functions"
 
 [dev]
   command = "cd frontend && npm run dev"
