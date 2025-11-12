@@ -5,8 +5,8 @@
 
 [build.environment]
   # Node.js version
-  NODE_VERSION = "20.0.0"
-  NPM_VERSION = "10.8.2"
+  NODE_VERSION = "20.5.0"
+  NPM_VERSION = "10.8.0"
   
   # Python version for Netlify Functions
   PYTHON_VERSION = "3.9"
