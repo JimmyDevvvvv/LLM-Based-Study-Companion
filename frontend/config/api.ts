@@ -4,18 +4,28 @@
 /**
  * Resolve API base URL so Netlify production hits the bundled function
  * while local development keeps using the Flask server.
+ * This function is called at runtime to ensure window is available.
  */
 const LOCAL_API_PORT = process.env.NEXT_PUBLIC_API_PORT?.trim() || '5000';
 
 const resolveApiBaseUrl = (): string => {
+  // First check for explicit environment variable (highest priority)
   const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (envUrl) {
+    console.log('[API Config] Using NEXT_PUBLIC_API_URL:', envUrl);
     return envUrl;
   }
 
+  // In browser, detect environment
   if (typeof window !== 'undefined') {
     const { protocol, hostname } = window.location;
     const normalizedHost = hostname?.toLowerCase();
+    
+    // Check if running on Netlify
+    const isNetlify = normalizedHost.includes('netlify.app') || 
+                      normalizedHost.includes('netlify.com');
+    
+    // Check if running on localhost/private network
     const isLoopbackHost =
       normalizedHost === 'localhost' ||
       normalizedHost === '127.0.0.1' ||
@@ -25,62 +35,131 @@ const resolveApiBaseUrl = (): string => {
       /^192\.168\./.test(hostname) ||
       /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
 
+    // For localhost/private network, use local backend
     if (isLoopbackHost || isPrivateNetworkHost) {
-      return `${protocol}//${hostname}:${LOCAL_API_PORT}`;
+      const apiUrl = `${protocol}//${hostname}:${LOCAL_API_PORT}`;
+      console.log('[API Config] Detected local/private network, using:', apiUrl);
+      return apiUrl;
     }
+    
+    // For Netlify deployment, use /api which proxies to Netlify Functions
+    if (isNetlify) {
+      console.log('[API Config] Running on Netlify, using /api proxy to Netlify Functions');
+      return '/api';
+    }
+    
+    // For other public domains, use /api (assumes proxy setup)
+    console.log('[API Config] Using default /api proxy for:', hostname);
   }
 
-  // Default for Netlify (proxied through Redirects to the serverless function)
+  // Default for Netlify/serverless (proxied through Redirects to the serverless function)
+  // Also used during SSR when window is not available
   return '/api';
 };
 
-export const API_BASE_URL = resolveApiBaseUrl();
+// Make API_BASE_URL a getter function that resolves at runtime
+export const getApiBaseUrl = (): string => resolveApiBaseUrl();
+
+// For backward compatibility, export a computed value (but it will be recomputed on client)
+export const API_BASE_URL = typeof window !== 'undefined' ? resolveApiBaseUrl() : '/api';
 
 /**
- * API Endpoints
+ * Helper to build endpoint URL with runtime base URL resolution
+ */
+const endpoint = (path: string): string => {
+  const base = getApiBaseUrl();
+  // Handle paths that already start with / or http
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  // If base already ends with /api and path starts with /, avoid double slash
+  if (base.endsWith('/api') && path.startsWith('/')) {
+    return base + path;
+  }
+  // If base doesn't end with / and path doesn't start with /, add /
+  if (!base.endsWith('/') && !path.startsWith('/')) {
+    return `${base}/${path}`;
+  }
+  return base + path;
+};
+
+/**
+ * API Endpoints - all resolve base URL at runtime
  */
 export const API_ENDPOINTS = {
   // Auth
-  auth: {
-    signup: `${API_BASE_URL}/auth/signup`,
-    login: `${API_BASE_URL}/auth/login`,
-    logout: `${API_BASE_URL}/auth/logout`,
+  get auth() {
+    return {
+      signup: endpoint('/auth/signup'),
+      login: endpoint('/auth/login'),
+      logout: endpoint('/auth/logout'),
+    };
   },
 
   // Health & Status
-  health: `${API_BASE_URL}/health`,
+  get health() {
+    return endpoint('/health');
+  },
   
   // Chat & Generation
-  generate: `${API_BASE_URL}/generate`,
-  chat: `${API_BASE_URL}/chat`,
+  get generate() {
+    return endpoint('/generate');
+  },
+  get chat() {
+    return endpoint('/chat');
+  },
   
   // Content Generation
-  contentCreate: `${API_BASE_URL}/content/create`,
-  contentSlide: `${API_BASE_URL}/content/slide`,
-  contentAdjust: `${API_BASE_URL}/content/adjust`,
-  contentSave: `${API_BASE_URL}/content/save`,
+  get contentCreate() {
+    return endpoint('/content/create');
+  },
+  get contentSlide() {
+    return endpoint('/content/slide');
+  },
+  get contentAdjust() {
+    return endpoint('/content/adjust');
+  },
+  get contentSave() {
+    return endpoint('/content/save');
+  },
   
   // Grading & Quiz
-  grade: `${API_BASE_URL}/grade`,
-  quiz: `${API_BASE_URL}/quiz`,
+  get grade() {
+    return endpoint('/grade');
+  },
+  get quiz() {
+    return endpoint('/quiz');
+  },
   
   // File Upload
-  upload: `${API_BASE_URL}/upload`,
-  file: `${API_BASE_URL}/file`,
+  get upload() {
+    return endpoint('/upload');
+  },
+  get file() {
+    return endpoint('/file');
+  },
   
   // Memory & Personalization
-  memory: (userId: string) => `${API_BASE_URL}/memory/${userId}`,
-  tone: (userId: string) => `${API_BASE_URL}/tone/${userId}`,
+  memory: (userId: string) => endpoint(`/memory/${userId}`),
+  tone: (userId: string) => endpoint(`/tone/${userId}`),
   
   // Conversations
-  conversations: (userId: string) => `${API_BASE_URL}/conversations/${userId}`,
-  conversation: (userId: string, convId: string) => `${API_BASE_URL}/conversations/${userId}/${convId}`,
+  conversations: (userId: string) => endpoint(`/conversations/${userId}`),
+  conversation: (userId: string, convId: string) => endpoint(`/conversations/${userId}/${convId}`),
   
   // Admin & Tools
-  adminTemplate: `${API_BASE_URL}/admin/template`,
-  ideas: `${API_BASE_URL}/ideas`,
-  help: `${API_BASE_URL}/help`,
-  history: `${API_BASE_URL}/history`,
+  get adminTemplate() {
+    return endpoint('/admin/template');
+  },
+  get ideas() {
+    return endpoint('/ideas');
+  },
+  get help() {
+    return endpoint('/help');
+  },
+  get history() {
+    return endpoint('/history');
+  },
 };
 
 /**
