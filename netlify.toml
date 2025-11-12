@@ -1,6 +1,6 @@
 [build]
-  command = "cd frontend && npm ci && npm run build && cd ../netlify/functions && pip install -r requirements.txt -t ."
-  publish = "frontend/.next"
+  command = "npm ci && npm run build"
+  publish = ".next"
   base = "frontend"
 
 [build.environment]
@@ -28,8 +28,9 @@
 
 # Configure functions
 [functions]
-  directory = "netlify/functions"
-  included_files = ["backend/**"]
+  directory = "../netlify/functions"
+  included_files = ["../backend/**"]
+  
   # Python functions don't use node_bundler
   # node_bundler = "esbuild"
   # external_node_modules = ["@next/swc-wasm-nodejs"]

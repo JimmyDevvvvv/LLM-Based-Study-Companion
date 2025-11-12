@@ -3,8 +3,9 @@ import os
 import json
 
 # Add the backend directory to the Python path
+# From netlify/functions/api.py, go up two levels to repo root, then to backend
 BACKEND_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "backend")
+    os.path.join(os.path.dirname(__file__), "..", "..", "backend")
 )
 if BACKEND_PATH not in sys.path:
     sys.path.insert(0, BACKEND_PATH)
