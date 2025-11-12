@@ -2,12 +2,27 @@
 // Centralized API configuration for easy deployment switching
 
 /**
- * API Base URL Configuration
- * 
- * For local development: http://127.0.0.1:5000
- * For production: Set NEXT_PUBLIC_API_URL environment variable
+ * Resolve API base URL so Netlify production hits the bundled function
+ * while local development keeps using the Flask server.
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+const resolveApiBaseUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return envUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://127.0.0.1:5000';
+    }
+  }
+
+  // Default for Netlify (proxied through Redirects to the serverless function)
+  return '/api';
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 /**
  * API Endpoints

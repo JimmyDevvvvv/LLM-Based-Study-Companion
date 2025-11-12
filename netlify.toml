@@ -1,7 +1,7 @@
 [build]
   command = "npm ci && npm run build"
-  publish = "frontend/.next"
-  base = "/frontend"
+  publish = ".next"
+  base = "frontend"
 
 [build.environment]
   # Node.js version
@@ -48,10 +48,6 @@
 # Next.js plugin
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  [plugins.inputs]
-    buildCommand = "npm run build"
-    publish = "frontend/.next"
-    functions = "netlify/functions"
 
 # Development server settings
 [dev]
