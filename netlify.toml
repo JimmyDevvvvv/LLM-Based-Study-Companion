@@ -32,18 +32,18 @@
   node_bundler = "esbuild"
   external_node_modules = ["@next/swc-wasm-nodejs"]
 
-# Redirects
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# API redirects
+# API redirects - MUST come before catch-all redirect
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
-  force = false
+  force = true
+
+# Catch-all redirect for Next.js (must come after API redirects)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 # Next.js plugin
 [[plugins]]
