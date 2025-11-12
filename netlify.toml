@@ -1,37 +1,61 @@
 [build]
-  command = "cd frontend && npm install && npm run build"
+  command = "npm ci && npm run build"
   publish = "frontend/.next"
-  functions = "netlify/functions"
+  base = "/frontend"
 
 [build.environment]
-  PYTHON_VERSION = "3.9"
+  # Node.js version
   NODE_VERSION = "20.0.0"
   NPM_VERSION = "10.8.2"
+  
+  # Python version for Netlify Functions
+  PYTHON_VERSION = "3.9"
+  
+  # Build optimizations
   NODE_OPTIONS = "--max_old_space_size=4096"
-  # Disable Next.js telemetry during build
+  
+  # Disable Next.js telemetry
   NEXT_TELEMETRY_DISABLED = "1"
+  
   # Disable ESLint during build
   ESLINT_NO_DEV_ERRORS = "true"
+  
   # Disable TypeScript type checking during build
   TSC_COMPILE_ON_ERROR = "true"
+  
+  # Enable Next.js standalone output
+  NETLIFY_NEXT_PLUGIN_SKIP = "false"
 
-# Required for Next.js 15+ with Turbopack
+# Configure functions
 [functions]
+  directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@next/swc-wasm-nodejs"]
 
+# Redirects
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# API redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = false
 
+# Next.js plugin
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+  [plugins.inputs]
+    buildCommand = "npm run build"
+    publish = "frontend/.next"
+    functions = "netlify/functions"
 
+# Development server settings
 [dev]
-  command = "cd frontend && npm run dev"
+  command = "npm run dev"
   port = 3000
-  targetPort = 3000
   publish = "frontend/.next"
-  autoLaunch = false
+  targetPort = 3000
