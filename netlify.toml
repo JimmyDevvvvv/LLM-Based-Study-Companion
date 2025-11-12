@@ -29,8 +29,9 @@
 # Configure functions
 [functions]
   directory = "netlify/functions"
-  node_bundler = "esbuild"
-  external_node_modules = ["@next/swc-wasm-nodejs"]
+  # Python functions don't use node_bundler
+  # node_bundler = "esbuild"
+  # external_node_modules = ["@next/swc-wasm-nodejs"]
 
 # API redirects - MUST come before catch-all redirect
 [[redirects]]
