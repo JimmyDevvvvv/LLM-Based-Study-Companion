@@ -38,7 +38,11 @@ app = Flask(__name__)
 # CORS configuration
 CORS(app, resources={
     r"/*": {
-        "origins": "*",
+        "origins": [
+            "https://llm-based-study-companion.netlify.app",  # Netlify production
+            "http://localhost:3000",  # Local development
+            "http://127.0.0.1:3000"  # Local development alternative
+        ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
