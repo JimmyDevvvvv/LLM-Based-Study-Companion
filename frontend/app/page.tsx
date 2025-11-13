@@ -74,38 +74,57 @@ export default function StudyMind() {
 
   // Initialize: Load existing conversation or create new one (only once)
   useEffect(() => {
-    if (initializedRef.current || authLoading) return;
+    if (initializedRef.current || authLoading || !userId) return;
     
-    if (conversations.length === 0) {
-      if (!currentConversationId) {
-        startNewConversation();
-        initializedRef.current = true;
-      }
-    } else {
-      if (currentConversationId) {
-        const conversationExists = conversations.find(c => c.id === currentConversationId);
-        if (conversationExists) {
-          handleConversationSelect(currentConversationId);
-        } else {
-          handleConversationSelect(conversations[0].id);
+    const initialize = async () => {
+      if (conversations.length === 0) {
+        // No conversations exist, create a new one
+        if (!currentConversationId) {
+          await startNewConversation();
         }
       } else {
-        handleConversationSelect(conversations[0].id);
+        // Conversations exist, load the appropriate one
+        const targetConvId = currentConversationId && conversations.find(c => c.id === currentConversationId)
+          ? currentConversationId
+          : conversations[0]?.id;
+        
+        if (targetConvId) {
+          await handleConversationSelect(targetConvId);
+        }
       }
       initializedRef.current = true;
-    }
-  }, [conversations.length, currentConversationId, authLoading]);
+    };
 
-  // Auto-save conversation when messages change
+    initialize();
+  }, [conversations.length, userId, authLoading]);
+
+  // Auto-save conversation when messages change (debounced)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
-    if (currentConversationId && messages.length > 1) {
-      const currentConv = conversations.find(c => c.id === currentConversationId);
-      const shouldUpdateTitle = currentConv && currentConv.title === "New Conversation" && messages.length >= 2;
-      
-      const title = shouldUpdateTitle ? generateTitle(messages) : undefined;
-      updateConversation(currentConversationId, messages, title);
+    // Clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [messages, currentConversationId]);
+
+    // Only save if we have messages and a conversation
+    if (currentConversationId && messages.length > 0) {
+      // Debounce the save by 2 seconds
+      saveTimeoutRef.current = setTimeout(async () => {
+        const currentConv = conversations.find(c => c.id === currentConversationId);
+        const shouldUpdateTitle = currentConv && currentConv.title === "New Conversation" && messages.length >= 2;
+        
+        const title = shouldUpdateTitle ? generateTitle(messages) : undefined;
+        await updateConversation(currentConversationId, messages, title);
+      }, 2000);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [messages, currentConversationId, conversations, generateTitle, updateConversation]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -129,6 +148,12 @@ export default function StudyMind() {
   };
 
   const handleConversationSelect = async (conversationId: string) => {
+    // Don't reload if we're already on this conversation
+    if (conversationId === currentConversationId) return;
+    
+    // Clear messages while loading
+    setMessages([]);
+    
     const loadedMessages = await loadConversation(conversationId);
     if (loadedMessages) {
       setMessages(loadedMessages);
