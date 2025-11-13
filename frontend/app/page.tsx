@@ -50,6 +50,7 @@ export default function StudyMind() {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const initializedRef = useRef<boolean>(false);
   const [threadLoading, setThreadLoading] = useState<boolean>(false);
+  const autoSaveDisabledRef = useRef<boolean>(false);
 
   // Auto-show auth modal if user is not authenticated
   useEffect(() => {
@@ -116,21 +117,42 @@ export default function StudyMind() {
   // Auto-save conversation when messages change (debounced)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
+  const persistCurrentConversation = useRef<((messagesOverride?: Message[]) => Promise<void>) | null>(null);
+
+  persistCurrentConversation.current = async (messagesOverride?: Message[]) => {
+    if (!currentConversationId) return;
+    const messagesToSave = messagesOverride ?? messages;
+    if (messagesToSave.length === 0) return;
+
+    const currentConv = conversations.find(c => c.id === currentConversationId);
+    const shouldUpdateTitle =
+      currentConv && currentConv.title === "New Conversation" && messagesToSave.some(msg => msg.type === "user");
+
+    const title = shouldUpdateTitle ? generateTitle(messagesToSave) : undefined;
+    await updateConversation(currentConversationId, messagesToSave, title);
+  };
+
   useEffect(() => {
     // Clear previous timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
+    if (autoSaveDisabledRef.current) {
+      return;
+    }
+
     // Only save if we have messages and a conversation
     if (currentConversationId && messages.length > 0) {
       // Debounce the save by 2 seconds
       saveTimeoutRef.current = setTimeout(async () => {
-        const currentConv = conversations.find(c => c.id === currentConversationId);
-        const shouldUpdateTitle = currentConv && currentConv.title === "New Conversation" && messages.length >= 2;
-        
-        const title = shouldUpdateTitle ? generateTitle(messages) : undefined;
-        await updateConversation(currentConversationId, messages, title);
+        if (persistCurrentConversation.current) {
+          try {
+            await persistCurrentConversation.current();
+          } catch (err) {
+            console.error("Failed to auto-save conversation:", err);
+          }
+        }
       }, 2000);
     }
 
@@ -162,6 +184,17 @@ export default function StudyMind() {
     optimisticUpdatePreview(currentConversationId, last.content);
   }, [messages, currentConversationId, optimisticUpdatePreview]);
   const startNewConversation = async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (persistCurrentConversation.current) {
+      try {
+        await persistCurrentConversation.current();
+      } catch (err) {
+        console.error("Failed to save conversation before starting a new one:", err);
+      }
+    }
     const conversationId = await createConversation("New Conversation");
     if (conversationId) {
       const initialMessage: Message = {
@@ -182,14 +215,29 @@ export default function StudyMind() {
     if (conversationId === currentConversationId) return;
     
     // Clear messages while loading
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (persistCurrentConversation.current) {
+      try {
+        await persistCurrentConversation.current();
+      } catch (err) {
+        console.error("Failed to save conversation before switching:", err);
+      }
+    }
+    autoSaveDisabledRef.current = true;
     setMessages([]);
     setThreadLoading(true);
-    
-    const loadedMessages = await loadConversation(conversationId);
-    if (loadedMessages) {
-      setMessages(loadedMessages);
+    try {
+      const loadedMessages = await loadConversation(conversationId);
+      if (loadedMessages) {
+        setMessages(loadedMessages);
+      }
+    } finally {
+      setThreadLoading(false);
+      autoSaveDisabledRef.current = false;
     }
-    setThreadLoading(false);
   };
 
   const handleDeleteConversation = async (conversationId: string) => {

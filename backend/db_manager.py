@@ -7,6 +7,9 @@ from pymongo import MongoClient
 from datetime import datetime
 from typing import Dict, List, Optional
 import os
+import json
+import threading
+import copy
 
 
 class DatabaseManager:
@@ -247,3 +250,129 @@ class DatabaseManager:
         """Close database connection"""
         self.client.close()
         print("Database connection closed")
+
+
+class FileConversationStore:
+    """Lightweight file-based conversation storage fallback when MongoDB is unavailable."""
+
+    def __init__(self, storage_path: Optional[str] = None):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        default_name = os.path.join(base_dir, "data", "conversations_default_user.json")
+        self.storage_path = storage_path or default_name
+        self._lock = threading.Lock()
+        self._ensure_storage_file()
+
+    # ---------- Internal helpers ----------
+    def _ensure_storage_file(self):
+        os.makedirs(os.path.dirname(self.storage_path), exist_ok=True)
+        if not os.path.exists(self.storage_path):
+            with open(self.storage_path, "w", encoding="utf-8") as f:
+                json.dump({}, f)
+
+    def _load(self) -> Dict[str, List[Dict]]:
+        with self._lock:
+            try:
+                with open(self.storage_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+
+        # Backward compatibility: previous format was a bare list for default_user
+        if isinstance(data, list):
+            return {"default_user": data}
+
+        if not isinstance(data, dict):
+            return {}
+
+        return data
+
+    def _save(self, data: Dict[str, List[Dict]]):
+        with self._lock:
+            with open(self.storage_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+
+    def _generate_conversation_id(self) -> str:
+        return str(int(datetime.now().timestamp() * 1000))
+
+    def _build_conversation_response(self, conversation: Dict) -> Dict:
+        # Return a deep copy to avoid accidental in-memory mutations
+        conv_copy = copy.deepcopy(conversation)
+        # Ensure required keys exist
+        conv_copy.setdefault("id", self._generate_conversation_id())
+        conv_copy.setdefault("title", "New Conversation")
+        conv_copy.setdefault("messages", [])
+        conv_copy.setdefault("lastMessage", "")
+        conv_copy.setdefault("timestamp", datetime.utcnow().isoformat())
+        return conv_copy
+
+    # ---------- Public API ----------
+    def get_conversations(self, user_id: str) -> List[Dict]:
+        data = self._load()
+        conversations = data.get(user_id, [])
+        normalized = [self._build_conversation_response(conv) for conv in conversations]
+        # Sort newest first
+        normalized.sort(key=lambda c: c.get("timestamp", ""), reverse=True)
+        return normalized
+
+    def get_conversation(self, user_id: str, conversation_id: str) -> Optional[Dict]:
+        data = self._load()
+        for conv in data.get(user_id, []):
+            if str(conv.get("id")) == str(conversation_id):
+                return self._build_conversation_response(conv)
+        return None
+
+    def create_conversation(self, user_id: str, title: str = "New Conversation") -> str:
+        data = self._load()
+        conv_id = self._generate_conversation_id()
+        timestamp = datetime.utcnow().isoformat()
+        conversation = {
+            "id": conv_id,
+            "title": title or "New Conversation",
+            "messages": [],
+            "lastMessage": "",
+            "timestamp": timestamp,
+        }
+        data.setdefault(user_id, [])
+        data[user_id].append(conversation)
+        self._save(data)
+        return conv_id
+
+    def update_conversation(self, user_id: str, conversation_id: str,
+                            messages: List = None, title: str = None) -> bool:
+        data = self._load()
+        conversations = data.get(user_id, [])
+        updated = False
+        for idx, conv in enumerate(conversations):
+            if str(conv.get("id")) == str(conversation_id):
+                conv = copy.deepcopy(conv)
+                if messages is not None:
+                    conv["messages"] = messages
+                    if messages:
+                        last_msg = messages[-1].get("content", "")
+                        conv["lastMessage"] = last_msg[:100]
+                    else:
+                        conv["lastMessage"] = ""
+                if title is not None:
+                    conv["title"] = title
+                conv["timestamp"] = datetime.utcnow().isoformat()
+                conversations[idx] = conv
+                updated = True
+                break
+        if updated:
+            data[user_id] = conversations
+            self._save(data)
+        return updated
+
+    def delete_conversation(self, user_id: str, conversation_id: str) -> bool:
+        data = self._load()
+        conversations = data.get(user_id, [])
+        new_conversations = [conv for conv in conversations if str(conv.get("id")) != str(conversation_id)]
+        if len(new_conversations) == len(conversations):
+            return False
+        data[user_id] = new_conversations
+        self._save(data)
+        return True
+
+    def close(self):
+        """Compatibility method with DatabaseManager."""
+        return None

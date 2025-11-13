@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
 from memory_manager import EducatorMemory
-from db_manager import DatabaseManager
+from db_manager import DatabaseManager, FileConversationStore
 from auth_manager import AuthManager, require_auth, optional_auth
 import os
 import json
@@ -71,6 +71,9 @@ if MONGODB_URI:
 else:
     print("⚠️  No MONGODB_URI found - database features disabled")
     db = None
+
+# Conversation store (DB or file fallback)
+conversation_store = db if db else FileConversationStore()
 
 # Configure Auth
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-this-in-production")
@@ -471,11 +474,8 @@ def get_conversations(user_id):
         return jsonify({"error": "Unauthorized"}), 403
     
     try:
-        if db:
-            conversations = db.get_conversations(user_id)
-            return jsonify({"conversations": conversations})
-        else:
-            return jsonify({"conversations": []})
+        conversations = conversation_store.get_conversations(user_id)
+        return jsonify({"conversations": conversations})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -491,12 +491,9 @@ def create_conversation(user_id):
     title = data.get("title", "New Conversation")
     
     try:
-        if db:
-            conv_id = db.create_conversation(user_id, title)
-            conversation = db.get_conversation(user_id, conv_id)
-            return jsonify({"conversation": conversation})
-        else:
-            return jsonify({"error": "Database not configured"}), 503
+        conv_id = conversation_store.create_conversation(user_id, title)
+        conversation = conversation_store.get_conversation(user_id, conv_id)
+        return jsonify({"conversation": conversation})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -509,13 +506,10 @@ def get_conversation(user_id, conversation_id):
         return jsonify({"error": "Unauthorized"}), 403
     
     try:
-        if db:
-            conversation = db.get_conversation(user_id, conversation_id)
-            if not conversation:
-                return jsonify({"error": "Not found"}), 404
-            return jsonify({"conversation": conversation})
-        else:
-            return jsonify({"error": "Database not configured"}), 503
+        conversation = conversation_store.get_conversation(user_id, conversation_id)
+        if not conversation:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify({"conversation": conversation})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -532,12 +526,11 @@ def update_conversation(user_id, conversation_id):
     title = data.get("title")
     
     try:
-        if db:
-            db.update_conversation(user_id, conversation_id, messages, title)
-            conversation = db.get_conversation(user_id, conversation_id)
-            return jsonify({"conversation": conversation})
-        else:
-            return jsonify({"error": "Database not configured"}), 503
+        updated = conversation_store.update_conversation(user_id, conversation_id, messages, title)
+        if not updated:
+            return jsonify({"error": "Not found"}), 404
+        conversation = conversation_store.get_conversation(user_id, conversation_id)
+        return jsonify({"conversation": conversation})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -550,11 +543,10 @@ def delete_conversation(user_id, conversation_id):
         return jsonify({"error": "Unauthorized"}), 403
     
     try:
-        if db:
-            db.delete_conversation(user_id, conversation_id)
-            return jsonify({"message": "Deleted"})
-        else:
-            return jsonify({"error": "Database not configured"}), 503
+        deleted = conversation_store.delete_conversation(user_id, conversation_id)
+        if not deleted:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify({"message": "Deleted"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
