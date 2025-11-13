@@ -128,6 +128,11 @@ class DatabaseManager:
         for conv in conversations:
             conv['id'] = conv.pop('conversation_id')
             conv['timestamp'] = conv['updated_at'].isoformat()
+            # Normalize snake_case to camelCase for frontend expectations
+            if 'last_message' in conv:
+                conv['lastMessage'] = conv.get('last_message', '')
+                # Keep original in DB only; not needed in API response
+                conv.pop('last_message', None)
         
         return conversations
     
@@ -141,6 +146,9 @@ class DatabaseManager:
         if conv:
             conv['id'] = conv.pop('conversation_id')
             conv['timestamp'] = conv['updated_at'].isoformat()
+            if 'last_message' in conv:
+                conv['lastMessage'] = conv.get('last_message', '')
+                conv.pop('last_message', None)
         
         return conv
     

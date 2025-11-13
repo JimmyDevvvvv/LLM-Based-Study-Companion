@@ -48,6 +48,7 @@ export default function StudyMind() {
   const [toast, setToast] = useState<string>("");
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const initializedRef = useRef<boolean>(false);
+  const [threadLoading, setThreadLoading] = useState<boolean>(false);
 
   // Auto-show auth modal if user is not authenticated
   useEffect(() => {
@@ -65,6 +66,9 @@ export default function StudyMind() {
     deleteConversation,
     setCurrentConversationId,
     generateTitle,
+    error: convError,
+    loading: convLoading,
+    optimisticUpdatePreview,
   } = useChatHistory(userId);
 
   useEffect(() => {
@@ -72,9 +76,19 @@ export default function StudyMind() {
     setSidebarOpen(savedSidebarState !== 'false');
   }, []);
 
+  // Surface chat history errors as toasts
+  useEffect(() => {
+    if (convError) {
+      setToast(convError);
+      // Auto-clear toast after 3s
+      const t = setTimeout(() => setToast(""), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [convError]);
+
   // Initialize: Load existing conversation or create new one (only once)
   useEffect(() => {
-    if (initializedRef.current || authLoading || !userId) return;
+    if (initializedRef.current || authLoading || !userId || convLoading) return;
     
     const initialize = async () => {
       if (conversations.length === 0) {
@@ -96,10 +110,10 @@ export default function StudyMind() {
     };
 
     initialize();
-  }, [conversations.length, userId, authLoading]);
+  }, [conversations.length, userId, authLoading, convLoading]);
 
   // Auto-save conversation when messages change (debounced)
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   useEffect(() => {
     // Clear previous timeout
@@ -131,6 +145,21 @@ export default function StudyMind() {
     localStorage.setItem('sidebarOpen', (!sidebarOpen).toString());
   };
 
+  // Ensure a conversation exists before sending
+  const handleSendEnsured = async () => {
+    if (!currentConversationId) {
+      await startNewConversation();
+    }
+    await handleSend();
+  };
+
+  // Optimistically update sidebar lastMessage like ChatGPT when messages change
+  useEffect(() => {
+    if (!currentConversationId || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (!last?.content) return;
+    optimisticUpdatePreview(currentConversationId, last.content);
+  }, [messages, currentConversationId, optimisticUpdatePreview]);
   const startNewConversation = async () => {
     const conversationId = await createConversation("New Conversation");
     if (conversationId) {
@@ -153,11 +182,13 @@ export default function StudyMind() {
     
     // Clear messages while loading
     setMessages([]);
+    setThreadLoading(true);
     
     const loadedMessages = await loadConversation(conversationId);
     if (loadedMessages) {
       setMessages(loadedMessages);
     }
+    setThreadLoading(false);
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
@@ -327,14 +358,27 @@ export default function StudyMind() {
               </div>
             ) : (
               <div className="max-w-4xl mx-auto px-4 sm:px-6">
-                {messages.map((message, index) => (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    index={index}
-                    isDark={isDark}
-                  />
-                ))}
+                {threadLoading ? (
+                  <div className="py-8">
+                    <div className={`h-6 w-40 mb-4 rounded ${isDark ? 'bg-gray-800/50' : 'bg-gray-200/70'} animate-pulse`} />
+                    <div className={`space-y-4`}>
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className={`h-20 rounded-xl ${isDark ? 'bg-gray-800/30' : 'bg-gray-100/70'} animate-pulse`} />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((message, index) => (
+                      <ChatMessage
+                        key={message.id}
+                        message={message}
+                        index={index}
+                        isDark={isDark}
+                      />
+                    ))}
+                  </>
+                )}
 
                 {/* Typing Indicator */}
                 {isTyping && (
@@ -370,7 +414,7 @@ export default function StudyMind() {
             isTyping={isTyping}
             inputRef={inputRef}
             setInputText={setInputText}
-            handleSend={handleSend}
+            handleSend={handleSendEnsured}
             handleKeyPress={handleKeyPress}
             handleInputResize={handleInputResize}
             handleFileUpload={handleFileUpload}
