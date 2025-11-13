@@ -15,6 +15,7 @@ export function useChatHistory(userId: string) {
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // Load all conversations for the user
   const loadConversations = useCallback(async () => {
@@ -154,24 +155,37 @@ export function useChatHistory(userId: string) {
 
   // Delete a conversation
   const deleteConversation = async (conversationId: string): Promise<boolean> => {
+    // Store the current conversations in case we need to restore
+    const previousConversations = conversations;
+    
     try {
-      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId), {
-        method: "DELETE",
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to delete conversation");
-      }
-      
+      // Optimistically remove from UI
       setConversations(prev => prev.filter(conv => conv.id !== conversationId));
       
+      // Clear current conversation if it's the one being deleted
       if (currentConversationId === conversationId) {
         setCurrentConversationId(null);
       }
       
+      // Make the API request
+      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId), {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      if (!response.ok) {
+        // Restore conversations on error
+        setConversations(previousConversations);
+        throw new Error("Failed to delete conversation");
+      }
+      
+      setError(null);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete conversation");
+      // Restore conversations on error
+      setConversations(previousConversations);
+      const errorMsg = err instanceof Error ? err.message : "Failed to delete conversation";
+      setError(errorMsg);
       console.error("Error deleting conversation:", err);
       return false;
     }
@@ -204,5 +218,6 @@ export function useChatHistory(userId: string) {
     setCurrentConversationId,
     loadConversations,
     generateTitle,
+    deletingIds,
   };
 }

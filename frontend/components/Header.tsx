@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Menu, Star, Zap, ChevronDown, Check } from "lucide-react";
+import { Menu, Star, Zap, ChevronDown, Check, Moon, Sun } from "lucide-react";
 import { User } from "@/utils/authClient";
 
 interface HeaderProps {
@@ -14,6 +14,7 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   setToneMenuOpen: (open: boolean) => void;
   changeTone: (tone: string) => void;
+  toggleTheme?: () => void;
   user: User | null;
   onShowAuth: () => void;
 }
@@ -28,6 +29,7 @@ export default function Header({
   setActiveTab,
   setToneMenuOpen,
   changeTone,
+  toggleTheme,
   user,
   onShowAuth
 }: HeaderProps) {
@@ -134,6 +136,21 @@ export default function Header({
               </div>
             )}
           </div>
+
+          {/* Dark Mode Toggle */}
+          {toggleTheme && (
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 transform ${
+                isDark 
+                  ? 'bg-gray-700/80 hover:bg-gray-600/90 border border-gray-600/50 text-yellow-400' 
+                  : 'bg-gray-100/80 hover:bg-gray-200/80 border border-gray-200/50 text-gray-700'
+              }`}
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          )}
 
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2 text-sm text-gray-500">

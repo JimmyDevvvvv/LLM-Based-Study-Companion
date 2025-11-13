@@ -24,7 +24,7 @@ export default function StudyMind() {
   const { user, loading: authLoading, getUserId, isAuthenticated } = useAuth();
   const userId = getUserId();
   
-  const { isDark, mounted } = useTheme();
+  const { isDark, mounted, toggleTheme } = useTheme();
   const {
     messages,
     setMessages,
@@ -195,6 +195,7 @@ export default function StudyMind() {
           setActiveTab={setActiveTab}
           setToneMenuOpen={setToneMenuOpen}
           changeTone={changeTone}
+          toggleTheme={toggleTheme}
           user={user}
           onShowAuth={() => setShowAuthModal(true)}
         />
