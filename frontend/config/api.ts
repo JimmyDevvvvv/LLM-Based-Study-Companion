@@ -167,6 +167,20 @@ export const API_ENDPOINTS = {
  */
 export const apiUtils = {
   /**
+   * Attempt to read access token from saved client session if not provided.
+   */
+  getSavedAccessToken(): string | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const raw = localStorage.getItem('auth_session');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.access_token || null;
+    } catch {
+      return null;
+    }
+  },
+  /**
    * Get auth headers (if user is logged in)
    */
   getAuthHeaders(accessToken?: string | null): HeadersInit {
@@ -175,8 +189,9 @@ export const apiUtils = {
       'Accept': 'application/json',
     };
     
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+    const token = accessToken ?? this.getSavedAccessToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     
     return headers;
@@ -217,11 +232,8 @@ export const apiUtils = {
    * Generic GET request helper with optional auth
    */
   async get<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
-    const headers: HeadersInit = { 'Accept': 'application/json' };
-    
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
+    const headers: HeadersInit = this.getAuthHeaders(accessToken);
+    delete (headers as any)['Content-Type'];
 
     const response = await fetch(endpoint, {
       headers,
@@ -255,11 +267,8 @@ export const apiUtils = {
    * Generic DELETE request helper with optional auth
    */
   async delete<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
-    const headers: HeadersInit = { 'Accept': 'application/json' };
-    
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
+    const headers: HeadersInit = this.getAuthHeaders(accessToken);
+    delete (headers as any)['Content-Type'];
 
     const response = await fetch(endpoint, {
       method: 'DELETE',
@@ -281,8 +290,9 @@ export const apiUtils = {
     formData.append('file', file);
 
     const headers: HeadersInit = {};
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+    const token = accessToken ?? this.getSavedAccessToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const response = await fetch(API_ENDPOINTS.upload, {

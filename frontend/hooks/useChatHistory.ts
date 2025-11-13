@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Conversation, Message } from "@/types";
-import { API_ENDPOINTS } from "@/config/api";
+import { API_ENDPOINTS, apiUtils } from "@/config/api";
 
-export function useChatHistory(userId: string) {
+export function useChatHistory(userId: string, accessToken?: string | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(() => {
     // Load from localStorage on initialization
@@ -35,11 +35,7 @@ export function useChatHistory(userId: string) {
     if (!userId) return;
     try {
       setLoading(true);
-      const response = await fetch(API_ENDPOINTS.conversations(userId));
-      if (!response.ok) {
-        throw new Error("Failed to load conversations");
-      }
-      const data = await response.json();
+      const data = await apiUtils.get<{ conversations: any[] }>(API_ENDPOINTS.conversations(userId), accessToken);
       // Normalize data to match frontend types
       const normalizedRaw: Conversation[] = (data.conversations || []).map((c: any) => ({
         id: String(c.id),
@@ -81,17 +77,7 @@ export function useChatHistory(userId: string) {
     }
     try {
       creatingRef.current = true;
-      const response = await fetch(API_ENDPOINTS.conversations(userId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to create conversation");
-      }
-      
-      const data = await response.json();
+      const data = await apiUtils.post<{ conversation: any }>(API_ENDPOINTS.conversations(userId), { title }, accessToken);
       const newConversation = data.conversation;
       
       setConversations(prev => {
@@ -123,12 +109,7 @@ export function useChatHistory(userId: string) {
   const loadConversation = async (conversationId: string): Promise<Message[] | null> => {
     if (!userId || !conversationId) return null;
     try {
-      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId));
-      if (!response.ok) {
-        throw new Error("Failed to load conversation");
-      }
-      
-      const data = await response.json();
+      const data = await apiUtils.get<{ conversation: any }>(API_ENDPOINTS.conversation(userId, conversationId), accessToken);
       const conversation = data.conversation;
       
       setCurrentConversationId(conversationId);
@@ -166,20 +147,14 @@ export function useChatHistory(userId: string) {
         isError: msg.isError,
       }));
 
-      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await apiUtils.put<{ conversation: any }>(
+        API_ENDPOINTS.conversation(userId, conversationId),
+        {
           messages: messagesData,
           ...(title && { title }),
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to update conversation");
-      }
-      
-      const data = await response.json();
+        },
+        accessToken
+      );
       const updatedConversation = data.conversation;
       
       // Update the conversation in the list
@@ -221,16 +196,7 @@ export function useChatHistory(userId: string) {
       }
       
       // Make the API request
-      const response = await fetch(API_ENDPOINTS.conversation(userId, conversationId), {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-      });
-      
-      if (!response.ok) {
-        // Restore conversations on error
-        setConversations(previousConversations);
-        throw new Error("Failed to delete conversation");
-      }
+      await apiUtils.delete(API_ENDPOINTS.conversation(userId, conversationId), accessToken);
       
       setError(null);
       return true;

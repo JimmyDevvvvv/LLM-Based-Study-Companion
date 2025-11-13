@@ -21,8 +21,9 @@ import AuthModal from "@/components/AuthModal";
 
 export default function StudyMind() {
   // Auth hook
-  const { user, loading: authLoading, getUserId, isAuthenticated } = useAuth();
+  const { user, loading: authLoading, getUserId, isAuthenticated, getAccessToken } = useAuth();
   const userId = getUserId();
+  const accessToken = getAccessToken();
   
   const { isDark, mounted, toggleTheme } = useTheme();
   const {
@@ -69,7 +70,7 @@ export default function StudyMind() {
     error: convError,
     loading: convLoading,
     optimisticUpdatePreview,
-  } = useChatHistory(userId);
+  } = useChatHistory(userId, accessToken);
 
   useEffect(() => {
     const savedSidebarState = localStorage.getItem('sidebarOpen');
