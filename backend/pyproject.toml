@@ -1,0 +1,8 @@
+[build-system]
+requires = ["pip"]
+build-backend = "pip"
+
+[project]
+name = "studymind-backend"
+version = "1.0.0"
+description = "StudyMind Backend - LLM-based study companion"
