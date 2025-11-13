@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { HelpCircle, Copy, Save, Sparkles } from "lucide-react";
 import Section from "./Section";
 import { API_ENDPOINTS } from "@/config/api";
+import { themeClasses } from "@/utils/themeStyles";
 
 interface QuizGeneratorProps {
   isDark: boolean;
@@ -18,6 +19,7 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
   const [qzCount, setQzCount] = useState<number>(5);
   const [qzOutput, setQzOutput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const theme = useMemo(() => themeClasses(isDark), [isDark]);
 
   const generateQuiz = async () => {
     if (!qzTopic.trim()) return;
@@ -52,12 +54,12 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
                 value={qzTopic} 
                 onChange={(e) => setQzTopic(e.target.value)} 
                 placeholder="e.g., Python Loops, World War II..."
-                className={`w-full px-4 py-3 border-2 rounded-xl ${isDark ? 'border-green-500/30 bg-gray-800/50 text-gray-100 focus:border-green-500' : 'border-green-200 bg-white text-gray-900 focus:border-green-500'} focus:outline-none transition-all duration-300`} 
+                className={theme.input}
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold">Difficulty</label>
-              <select value={qzDifficulty} onChange={(e) => setQzDifficulty(e.target.value)} className={`w-full px-4 py-3 border-2 rounded-xl ${isDark ? 'border-green-500/30 bg-gray-800/50 text-gray-100' : 'border-green-200 bg-white'} focus:outline-none focus:border-green-500 transition-all duration-300`}>
+              <select value={qzDifficulty} onChange={(e) => setQzDifficulty(e.target.value)} className={theme.input}>
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
                 <option value="advanced">Advanced</option>
@@ -65,7 +67,7 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold">Question Type</label>
-              <select value={qzType} onChange={(e) => setQzType(e.target.value)} className={`w-full px-4 py-3 border-2 rounded-xl ${isDark ? 'border-green-500/30 bg-gray-800/50 text-gray-100' : 'border-green-200 bg-white'} focus:outline-none focus:border-green-500 transition-all duration-300`}>
+              <select value={qzType} onChange={(e) => setQzType(e.target.value)} className={theme.input}>
                 <option value="mcq">Multiple Choice</option>
                 <option value="short">Short Answer</option>
               </select>
@@ -78,13 +80,13 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
                 onChange={(e) => setQzCount(Number(e.target.value))} 
                 min="1" 
                 max="20"
-                className={`w-full px-4 py-3 border-2 rounded-xl ${isDark ? 'border-green-500/30 bg-gray-800/50 text-gray-100' : 'border-green-200 bg-white'} focus:outline-none focus:border-green-500 transition-all duration-300`}
+                className={theme.input}
               />
             </div>
           </div>
         </Section>
         <div>
-          <button onClick={generateQuiz} disabled={loading || !qzTopic.trim()} className={`px-8 py-3 rounded-xl font-semibold text-white transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg ${loading || !qzTopic.trim() ? 'bg-gray-400' : 'bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 shadow-green-500/30'}`}>
+          <button onClick={generateQuiz} disabled={loading || !qzTopic.trim()} className={`${theme.primaryButton} !px-8 !py-3 ${loading || !qzTopic.trim() ? 'opacity-60 cursor-not-allowed hover:translate-y-0' : ''}`}>
             <span className="flex items-center gap-2">
               <HelpCircle className="w-5 h-5" />
               {loading ? 'Generating Quiz...' : 'Generate Quiz'}
@@ -93,18 +95,18 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
         </div>
         {qzOutput && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className={`rounded-2xl overflow-hidden border-2 ${isDark ? 'border-green-500/30 bg-gradient-to-br from-gray-800/50 to-gray-900/50' : 'border-green-200 bg-gradient-to-br from-white to-green-50/30'} shadow-2xl shadow-green-500/10`}>
-              <div className={`px-6 py-4 border-b ${isDark ? 'border-green-500/30 bg-gradient-to-r from-green-900/30 to-teal-900/30' : 'border-green-200 bg-gradient-to-r from-green-100 to-teal-100'}`}>
+            <div className={`${theme.surface} overflow-hidden`}>
+              <div className={`px-6 py-4 border-b ${isDark ? 'border-emerald-500/20 bg-emerald-500/15' : 'border-emerald-200 bg-emerald-50/80'}`}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-lg flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center shadow-lg">
+                    <div className={`${theme.icon} w-10 h-10`}>
                       <HelpCircle className="w-4 h-4 text-white" />
                     </div>
                     Quiz Questions
-                    <span className={`text-xs px-2 py-1 rounded-full ${isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'}`}>{qzCount} Questions</span>
+                    <span className={`${theme.badge}`}>{qzCount} Questions</span>
                   </h3>
                   <div className="flex gap-2">
-                    <button onClick={() => navigator.clipboard.writeText(qzOutput).then(() => setToast('Copied quiz'))} className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${isDark ? 'bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600' : 'bg-gray-100 hover:bg-gray-200 border border-gray-300'}`}>
+                    <button onClick={() => navigator.clipboard.writeText(qzOutput).then(() => setToast('Copied quiz'))} className={theme.secondaryButton}>
                       <Copy className="w-4 h-4" />
                       Copy
                     </button>
@@ -114,15 +116,15 @@ export default function QuizGenerator({ isDark, ctxText, setToast }: QuizGenerat
                         const data = await res.json();
                         if (data && data.saved_path) setToast(`Saved: ${data.saved_path}`);
                       } catch {}
-                    }} className="px-4 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 shadow-lg shadow-emerald-500/30">
+                    }} className={`${theme.primaryButton} !bg-gradient-to-r !from-emerald-500 !to-teal-600 flex items-center gap-2`}>
                       <Save className="w-4 h-4" />
                       Save
                     </button>
                   </div>
                 </div>
               </div>
-              <div className={`p-6 ${isDark ? 'bg-gray-900/50' : 'bg-white/50'} backdrop-blur-sm`}>
-                <pre className={`whitespace-pre-wrap text-sm leading-relaxed ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{qzOutput}</pre>
+              <div className={`p-6 ${isDark ? 'bg-slate-950/60' : 'bg-white/95'} backdrop-blur-xl`}>
+                <pre className={`whitespace-pre-wrap text-sm leading-relaxed ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{qzOutput}</pre>
               </div>
             </div>
           </div>

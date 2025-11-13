@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { X, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, CheckCircle, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -21,7 +21,6 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const { signIn, signUp } = useAuth();
-
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,7 +57,7 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
   const isFormValid = isEmailValid && isPasswordValid;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 md:p-10 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300">
       {/* Animated background orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{animationDuration: '4s'}}></div>
@@ -66,7 +65,7 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
       </div>
 
       {/* Modal */}
-      <div className={`relative w-full max-w-md rounded-3xl shadow-2xl backdrop-blur-xl border ${isDark ? 'bg-gray-900/95 border-gray-700/50' : 'bg-white/95 border-white/20'} overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500`}>
+      <div className={`relative w-full max-w-md rounded-[32px] shadow-2xl backdrop-blur-2xl border ${isDark ? 'bg-slate-950/90 border-slate-800/70 shadow-[0_40px_120px_-60px_rgba(37,99,235,0.85)]' : 'bg-white/90 border-white/40 shadow-[0_40px_120px_-60px_rgba(59,130,246,0.55)]'} overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500`}>
         
         {/* Gradient accent line at top */}
         <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
@@ -123,9 +122,9 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
               </label>
               <div className={`relative rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
                 focusedField === 'email'
-                  ? isDark ? 'border-blue-500/50 bg-gray-800/50' : 'border-blue-400/50 bg-blue-50/30'
-                  : isDark ? 'border-gray-700/50 bg-gray-800/30' : 'border-gray-200/50 bg-gray-50/30'
-              } backdrop-blur-sm`}>
+                  ? isDark ? 'border-indigo-500/60 bg-slate-900/60' : 'border-indigo-400/60 bg-white/90'
+                  : isDark ? 'border-slate-800/70 bg-slate-950/70' : 'border-slate-200/70 bg-white/85'
+              } backdrop-blur-xl`}>
                 <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
                   focusedField === 'email' ? 'text-blue-500' : isDark ? 'text-gray-600' : 'text-gray-400'
                 }`} />
@@ -137,9 +136,9 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
                   onBlur={() => setFocusedField(null)}
                   required
                   className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border-0 outline-none transition-all duration-300 font-medium ${
-                    isDark 
-                      ? 'bg-transparent text-white placeholder-gray-500' 
-                      : 'bg-transparent text-gray-900 placeholder-gray-400'
+                    isDark
+                      ? 'bg-transparent text-white placeholder-slate-500'
+                      : 'bg-transparent text-slate-900 placeholder-slate-400'
                   }`}
                   placeholder="you@example.com"
                 />
@@ -156,9 +155,9 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
               </label>
               <div className={`relative rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
                 focusedField === 'password'
-                  ? isDark ? 'border-blue-500/50 bg-gray-800/50' : 'border-blue-400/50 bg-blue-50/30'
-                  : isDark ? 'border-gray-700/50 bg-gray-800/30' : 'border-gray-200/50 bg-gray-50/30'
-              } backdrop-blur-sm`}>
+                  ? isDark ? 'border-indigo-500/60 bg-slate-900/60' : 'border-indigo-400/60 bg-white/90'
+                  : isDark ? 'border-slate-800/70 bg-slate-950/70' : 'border-slate-200/70 bg-white/85'
+              } backdrop-blur-xl`}>
                 <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
                   focusedField === 'password' ? 'text-blue-500' : isDark ? 'text-gray-600' : 'text-gray-400'
                 }`} />
@@ -180,7 +179,9 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${isDark ? 'text-gray-600 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${
+                    isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'
+                  }`}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -196,10 +197,10 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
             <button
               type="submit"
               disabled={loading || !isFormValid}
-              className={`relative w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group mt-8 ${
+              className={`relative w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 transform hover:scale-[1.02] disabled:scale-100 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group mt-8 ${
                 isFormValid && !loading
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50'
-                  : 'bg-gradient-to-r from-gray-400 to-gray-500 shadow-lg'
+                  ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:shadow-[0_25px_60px_-30px_rgba(147,51,234,0.55)]'
+                  : 'bg-gradient-to-r from-slate-400 to-slate-500 shadow-lg shadow-slate-600/30'
               }`}
             >
               {/* Gradient background animation */}
@@ -246,15 +247,15 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
           </div>
 
           {/* Guest mode note */}
-          <div className={`mt-6 p-4 rounded-2xl backdrop-blur-sm border ${
-            isDark 
-              ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' 
-              : 'bg-blue-50/80 border-blue-200/50 text-blue-700'
+          <div className={`mt-6 p-4 rounded-2xl backdrop-blur-lg border ${
+            isDark
+              ? 'bg-slate-900/70 border-slate-800/70 text-slate-300'
+              : 'bg-white/90 border-slate-200/70 text-slate-600'
           } text-xs font-medium`}>
             <div className="flex gap-2">
               <span className="text-lg">💡</span>
               <div>
-                <strong>Continue as Guest</strong>
+                <strong className="text-indigo-500 dark:text-indigo-300">Continue as Guest</strong>
                 <p className="mt-1 opacity-90">Use StudyMind without signing in. Your data will be saved locally.</p>
               </div>
             </div>

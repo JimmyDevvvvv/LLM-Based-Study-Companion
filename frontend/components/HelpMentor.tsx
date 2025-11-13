@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Section from "./Section";
 import { API_ENDPOINTS } from "@/config/api";
+import { themeClasses } from "@/utils/themeStyles";
 
 export default function HelpMentor({ isDark }: { isDark: boolean }) {
   const [q, setQ] = useState<string>('How do I generate quizzes?');
   const [a, setA] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const theme = useMemo(() => themeClasses(isDark), [isDark]);
   const ask = async () => {
     if (!q.trim()) return; setLoading(true); setA('');
     try {
@@ -18,17 +20,17 @@ export default function HelpMentor({ isDark }: { isDark: boolean }) {
     } catch (e) { setA('Error.'); } finally { setLoading(false); }
   };
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <input value={q} onChange={(e) => setQ(e.target.value)} className={`flex-1 px-3 py-2 border-2 rounded-md ${isDark ? 'border-gray-600 bg-gray-800 text-gray-100' : 'border-gray-300'}`} />
-        <button onClick={ask} disabled={loading || !q.trim()} className={`px-4 py-2 rounded-md ${isDark ? 'bg-blue-600 hover:bg-blue-500' : 'bg-blue-600 hover:bg-blue-500'} text-white`}>Ask</button>
+    <div className="space-y-4">
+      <div className={`${theme.surface} p-4 flex flex-col sm:flex-row gap-3`}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} className={`${theme.input} flex-1`} placeholder="Ask the mentor about StudyMind..." />
+        <button onClick={ask} disabled={loading || !q.trim()} className={`${theme.primaryButton} ${loading || !q.trim() ? 'opacity-60 cursor-not-allowed hover:translate-y-0' : ''}`}>{loading ? 'Thinking...' : 'Ask'}</button>
       </div>
       {a && (
         <Section title="Answer">
           <div className="flex gap-2 mb-2">
-            <button onClick={() => navigator.clipboard.writeText(a)} className={`px-3 py-1.5 rounded-md ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}>Copy</button>
+            <button onClick={() => navigator.clipboard.writeText(a)} className={theme.secondaryButton}>Copy</button>
           </div>
-          <pre className={`whitespace-pre-wrap text-sm p-4 rounded-lg ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>{a}</pre>
+          <pre className={`whitespace-pre-wrap text-sm p-4 rounded-2xl border ${isDark ? 'bg-slate-900/70 border-slate-800/60 text-slate-100' : 'bg-white/90 border-slate-200/70 text-slate-900'}`}>{a}</pre>
         </Section>
       )}
     </div>

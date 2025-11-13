@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { BookOpen, Brain, Lightbulb, FileText } from "lucide-react";
 import { Option } from "@/types";
+import { themeClasses } from "@/utils/themeStyles";
 
 interface ChatOptionsProps {
   isDark: boolean;
@@ -11,6 +12,7 @@ interface ChatOptionsProps {
 }
 
 export default function ChatOptions({ isDark, loading, handleOptionSelect }: ChatOptionsProps) {
+  const theme = useMemo(() => themeClasses(isDark), [isDark]);
   const options: Option[] = [
     {
       label: "Summary",
@@ -43,14 +45,14 @@ export default function ChatOptions({ isDark, loading, handleOptionSelect }: Cha
   ];
 
   return (
-    <div className={`py-8 ${isDark ? 'bg-gray-800/30' : 'bg-gray-50/50'} backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-700`}>
-      <div className="flex items-start space-x-4">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-lg">
+    <div className={`py-8 ${isDark ? 'bg-slate-950/40' : 'bg-white/70'} backdrop-blur-2xl rounded-3xl border ${isDark ? 'border-slate-800/40' : 'border-slate-200/60'} shadow-[0_25px_90px_-70px_rgba(129,140,248,0.55)] animate-in fade-in slide-in-from-bottom-4 duration-700`}>
+      <div className="flex items-start gap-4">
+        <div className={`${theme.icon} w-12 h-12`}>
           AI
         </div>
         <div className="flex-1">
-          <p className={`${isDark ? 'text-gray-200' : 'text-gray-900'} mb-6 text-lg font-medium`}>
-            🎯 Choose how you&apos;d like to study this content:
+          <p className={`${isDark ? 'text-slate-100' : 'text-slate-900'} mb-6 text-lg font-semibold tracking-tight`}>
+            🎯 Choose how you’d like to explore this content:
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -60,21 +62,28 @@ export default function ChatOptions({ isDark, loading, handleOptionSelect }: Cha
                 <button
                   key={option.task}
                   onClick={() => handleOptionSelect(option.task, option.label)}
-                  className={`group relative overflow-hidden flex items-center space-x-4 p-5 border-2 ${isDark ? 'border-gray-600 hover:border-gray-500 bg-gray-800/60 hover:bg-gray-700/80' : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'} rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-2xl text-left backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2`}
-                  style={{ animationDelay: `${index * 150}ms` }}
+                  disabled={loading}
+                  className={`group relative overflow-hidden flex items-center space-x-4 p-5 rounded-2xl transition-all duration-400 text-left backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 ${
+                    isDark
+                      ? "bg-slate-900/60 border border-slate-800/70 hover:bg-slate-900/80 hover:border-indigo-400/40"
+                      : "bg-white/90 border border-slate-200/70 hover:bg-white hover:border-indigo-200"
+                  } ${loading ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.02] hover:shadow-2xl"}`}
+                  style={{ animationDelay: `${index * 120}ms` }}
                 >
-                  <div className={`w-12 h-12 bg-gradient-to-br ${option.color} rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-all duration-300`}>
-                    <IconComponent className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`font-bold text-lg ${isDark ? 'text-gray-100' : 'text-gray-900'} group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:${option.color} group-hover:bg-clip-text transition-all duration-300`}>
-                      {option.label}
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className={`w-12 h-12 bg-gradient-to-br ${option.color} rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg transition-all duration-300 group-hover:scale-110`}>
+                      <IconComponent className="w-6 h-6 text-white" />
                     </div>
-                    <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} leading-relaxed`}>
-                      {option.description}
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-semibold text-lg ${isDark ? 'text-slate-100' : 'text-slate-900'} group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:${option.color} group-hover:bg-clip-text transition-all duration-300`}>
+                        {option.label}
+                      </div>
+                      <div className={`text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {option.description}
+                      </div>
                     </div>
                   </div>
-                  <div className={`absolute inset-0 bg-gradient-to-r ${option.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-2xl`}></div>
+                  <div className={`absolute inset-0 bg-gradient-to-r ${option.color} opacity-0 group-hover:opacity-15 transition-opacity duration-400 rounded-2xl`}></div>
                 </button>
               );
             })}

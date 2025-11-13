@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { BookOpen, User, Plus, MessageSquare, X, Trash2, LogIn, LogOut } from "lucide-react";
 import { Conversation } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
+import { themeClasses } from "@/utils/themeStyles";
 
 interface SidebarProps {
   isDark: boolean;
@@ -32,6 +33,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [hoveredConv, setHoveredConv] = useState<string | null>(null);
   const { signOut, isAuthenticated } = useAuth();
+  const theme = useMemo(() => themeClasses(isDark), [isDark]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -50,13 +52,13 @@ export default function Sidebar({
       )}
 
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative z-50 w-72 h-full bg-gradient-to-b ${isDark ? 'from-gray-900 via-black to-gray-900' : 'from-gray-900 via-gray-800 to-gray-900'} backdrop-blur-2xl text-white flex flex-col transition-all duration-500 ease-in-out transform border-r border-purple-500/20 shadow-2xl shadow-purple-500/10`}>
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative z-50 w-72 h-full ${isDark ? 'bg-slate-950/90' : 'bg-slate-900/95'} backdrop-blur-3xl text-white flex flex-col transition-all duration-500 ease-in-out transform border-r ${isDark ? 'border-slate-800/60' : 'border-slate-700/50'} shadow-[0_40px_160px_-90px_rgba(99,102,241,0.65)]`}>
         
         {/* Sidebar Header */}
-        <div className={`p-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-700'} backdrop-blur-sm`}>
+        <div className={`p-4 border-b ${isDark ? 'border-slate-800/70' : 'border-slate-700/60'} backdrop-blur-sm`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-indigo-500/30">
                 <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -79,8 +81,8 @@ export default function Sidebar({
             onClick={startNewConversation}
             className="relative w-full group overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm"></div>
-            <div className="relative flex items-center justify-center space-x-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform group-hover:scale-105 shadow-lg shadow-purple-500/30 group-hover:shadow-purple-500/50">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm"></div>
+            <div className="relative flex items-center justify-center space-x-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform group-hover:scale-105 shadow-lg shadow-purple-500/30 group-hover:shadow-purple-500/50">
               <Plus className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
               <span className="font-bold">New Conversation</span>
             </div>
@@ -107,21 +109,21 @@ export default function Sidebar({
                 >
                   <button
                     onClick={() => setCurrentConversation(conv.id)}
-                    className={`relative w-full text-left p-3 rounded-xl transition-all duration-300 group animate-in fade-in slide-in-from-left-2 border ${
+                    className={`relative w-full text-left p-3 rounded-xl transition-all duration-300 group animate-in fade-in slide-in-from-left-2 ${
                       currentConversation === conv.id
-                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-purple-500/40 shadow-lg'
-                        : 'border-transparent hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:border-purple-500/20'
+                        ? 'bg-slate-900/70 border border-indigo-500/40 shadow-lg'
+                        : 'border border-transparent hover:bg-slate-900/40 hover:border-indigo-400/30'
                     } hover:scale-[1.02] hover:shadow-lg`}
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
                     <div className="flex items-start space-x-3">
                       <div className={`w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center transition-all duration-300 ${
                         currentConversation === conv.id
-                          ? 'from-blue-500/40 to-purple-500/40'
-                          : 'from-blue-500/20 to-purple-500/20 group-hover:from-blue-500/30 group-hover:to-purple-500/30'
+                          ? 'from-indigo-500/40 to-purple-500/40 shadow-indigo-500/30'
+                          : 'from-indigo-500/20 to-purple-500/20 group-hover:from-indigo-500/30 group-hover:to-purple-500/30'
                       }`}>
                         <MessageSquare className={`w-4 h-4 transition-colors ${
-                          currentConversation === conv.id ? 'text-blue-300' : 'text-blue-400 group-hover:text-blue-300'
+                          currentConversation === conv.id ? 'text-indigo-200' : 'text-indigo-300 group-hover:text-indigo-200'
                         }`} />
                       </div>
                       <div className="flex-1 min-w-0 pr-8">
@@ -142,7 +144,7 @@ export default function Sidebar({
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
                       title="Delete conversation"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -155,11 +157,11 @@ export default function Sidebar({
         </div>
 
         {/* User Section */}
-        <div className={`p-4 border-t ${isDark ? 'border-gray-800' : 'border-gray-700'} backdrop-blur-sm`}>
+        <div className={`p-4 border-t ${isDark ? 'border-slate-800/70' : 'border-slate-700/60'} backdrop-blur-sm`}>
           {isAuthenticated && user ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 text-sm">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-sky-500 rounded-full flex items-center justify-center shadow-md shadow-emerald-500/30">
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -172,7 +174,7 @@ export default function Sidebar({
               </div>
               <button
                 onClick={handleSignOut}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors group"
+                className="p-2 hover:bg-slate-900/70 rounded-lg transition-colors group"
                 title="Sign out"
               >
                 <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-400 transition-colors" />
@@ -181,7 +183,7 @@ export default function Sidebar({
           ) : (
             <button
               onClick={onShowAuth}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30"
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30"
             >
               <LogIn className="w-4 h-4" />
               <span className="font-semibold">Sign In / Sign Up</span>

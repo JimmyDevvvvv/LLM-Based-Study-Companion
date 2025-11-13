@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Sparkles } from "lucide-react";
 import { Message } from "@/types";
+import { themeClasses } from "@/utils/themeStyles";
 
 interface ChatMessageProps {
   message: Message;
@@ -11,60 +12,76 @@ interface ChatMessageProps {
 }
 
 export default function ChatMessage({ message, index, isDark }: ChatMessageProps) {
+  const theme = useMemo(() => themeClasses(isDark), [isDark]);
   return (
-    <div 
+    <div
       className="group animate-in fade-in slide-in-from-bottom-4 duration-500"
-      style={{ animationDelay: `${index * 100}ms` }}
+      style={{ animationDelay: `${index * 80}ms` }}
     >
-      <div className={`relative py-8 transition-all duration-500 ${
-        message.type === 'assistant' 
-          ? `${isDark ? 'bg-gradient-to-r from-gray-800/20 via-purple-900/10 to-gray-800/20' : 'bg-gradient-to-r from-purple-50/30 via-blue-50/30 to-purple-50/30'} backdrop-blur-sm` 
-          : ''
-      } hover:bg-opacity-90 group`}>
-        {message.type === 'assistant' && (
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
+      <div
+        className={`relative py-8 px-4 sm:px-6 transition-all duration-500 ${
+          message.type === "assistant"
+            ? `${isDark ? "bg-slate-900/50" : "bg-white/80"} backdrop-blur-xl rounded-3xl border ${
+                isDark ? "border-slate-800/60" : "border-slate-200/60"
+              } shadow-[0_25px_80px_-60px_rgba(99,102,241,0.45)]`
+            : ""
+        }`}
+      >
+        {message.type === "assistant" && (
+          <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_top_left,rgba(129,140,248,0.22),transparent_55%)]"></div>
         )}
         <div className="relative flex items-start space-x-4">
-          
-          {/* Avatar */}
-          <div className={`relative w-12 h-12 rounded-2xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-2xl transition-all duration-500 hover:scale-110 hover:rotate-6 ${
-            message.type === 'user' 
-              ? 'bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 shadow-blue-500/50 animate-pulse' 
-              : 'bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 shadow-green-500/50'
-          }`}>
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent"></div>
-            <span className="relative z-10">{message.type === 'user' ? 'U' : 'AI'}</span>
+          <div
+            className={`relative w-12 h-12 rounded-2xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${
+              message.type === "user"
+                ? "bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-indigo-500/40"
+                : "bg-gradient-to-br from-emerald-500 via-teal-500 to-sky-500 shadow-emerald-500/40"
+            }`}
+          >
+            <div className="absolute inset-0 rounded-2xl bg-white/15"></div>
+            <span className="relative z-10">{message.type === "user" ? "U" : "AI"}</span>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-3">
             {message.task && (
-              <div className="mb-3 animate-in fade-in slide-in-from-left-2">
-                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${isDark ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50' : 'bg-blue-100 text-blue-800 border border-blue-200'} backdrop-blur-sm shadow-sm`}>
-                  <Sparkles className="w-3 h-3 mr-1.5 animate-pulse" />
-                  {message.task}
-                </span>
-              </div>
+              <span
+                className={`${theme.pill} inline-flex items-center gap-2 animate-in slide-in-from-left-2`}
+              >
+                <Sparkles className="w-3 h-3 animate-pulse" />
+                {message.task}
+              </span>
             )}
-            
+
             {message.isProcessing ? (
-              <div className={`flex items-center space-x-3 ${isDark ? 'text-gray-300' : 'text-gray-700'} animate-in fade-in slide-in-from-left-2`}>
+              <div
+                className={`flex items-center gap-3 text-sm font-medium ${
+                  isDark ? "text-slate-200" : "text-slate-600"
+                } animate-in slide-in-from-left-2`}
+              >
                 <div className="flex space-x-1">
-                  <div className={`w-2 h-2 ${isDark ? 'bg-blue-400' : 'bg-blue-500'} rounded-full animate-bounce shadow-lg`}></div>
-                  <div className={`w-2 h-2 ${isDark ? 'bg-purple-400' : 'bg-purple-500'} rounded-full animate-bounce shadow-lg`} style={{animationDelay: '0.1s'}}></div>
-                  <div className={`w-2 h-2 ${isDark ? 'bg-green-400' : 'bg-green-500'} rounded-full animate-bounce shadow-lg`} style={{animationDelay: '0.2s'}}></div>
+                  <div className="w-2 h-2 rounded-full bg-indigo-400 animate-[bounce_1s_infinite] shadow-indigo-400/40"></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-purple-400 animate-[bounce_1s_infinite] shadow-purple-400/40"
+                    style={{ animationDelay: "0.15s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-emerald-400 animate-[bounce_1s_infinite] shadow-emerald-400/40"
+                    style={{ animationDelay: "0.3s" }}
+                  ></div>
                 </div>
-                <span className="ml-3 font-medium">{message.content}</span>
+                <span>{message.content}</span>
               </div>
             ) : (
-              <div className={`prose prose-lg max-w-none transition-all duration-300 ${
-                message.isError 
-                  ? 'text-red-500' 
-                  : isDark 
-                    ? 'text-gray-200 prose-invert' 
-                    : 'text-gray-900'
-              }`}>
-                <div className="whitespace-pre-wrap leading-relaxed animate-in fade-in slide-in-from-left-2">
+              <div
+                className={`prose prose-lg max-w-none transition-all duration-300 ${
+                  message.isError
+                    ? "text-red-500"
+                    : isDark
+                    ? "text-slate-100 prose-invert"
+                    : "text-slate-900"
+                }`}
+              >
+                <div className="whitespace-pre-wrap leading-relaxed animate-in slide-in-from-left-2">
                   {message.content}
                 </div>
               </div>
