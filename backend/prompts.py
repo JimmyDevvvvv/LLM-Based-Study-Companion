@@ -220,7 +220,7 @@ def help_prompt(question: str) -> str:
 
 
 def chat_prompt(message: str, history: list = None) -> str:
-    """Prompt for conversational chat with context awareness."""
+    """Prompt for conversational chat with context awareness - natural, no markdown formatting."""
     msg = message.strip()
     context = ""
     
@@ -228,9 +228,9 @@ def chat_prompt(message: str, history: list = None) -> str:
     is_file_upload = "File:" in msg and "Extracted content:" in msg
     
     if history and len(history) > 0:
-        context = "CONVERSATION HISTORY:\n"
+        context = "Recent conversation:\n"
         for entry in history[-3:]:  # Last 3 messages for context (reduced to save tokens)
-            role = entry.get("role", "user").upper()
+            role = "Student" if entry.get("role") == "user" else "Assistant"
             content = entry.get("content", "")[:200]  # Truncate long history
             context += f"{role}: {content}...\n"
         context += "\n"
@@ -238,32 +238,32 @@ def chat_prompt(message: str, history: list = None) -> str:
     if is_file_upload:
         return (
             "You are StudyMind AI, an intelligent study companion. "
-            "A student has uploaded a file and you need to analyze its content.\n\n"
+            "A student has uploaded a file and you need to help them understand it.\n\n"
+            "IMPORTANT: Keep your response natural and conversational. "
+            "Do NOT use markdown formatting (no asterisks, dashes, bullet points, or numbered lists). "
+            "Write as if you're having a natural conversation with the student.\n\n"
             "INSTRUCTIONS:\n"
-            "1. Focus ONLY on the extracted content from the uploaded file\n"
+            "1. Focus on the content from the uploaded file\n"
             "2. If the student asks a question, answer it based on the file content\n"
-            "3. If no specific question is asked, provide a comprehensive summary of the file\n"
-            "4. Identify key concepts, main topics, and important points\n"
-            "5. Use markdown formatting for better readability\n"
-            "6. Be specific and reference actual content from the file\n\n"
+            "3. If no specific question is asked, provide a natural explanation of the file content\n"
+            "4. Identify key concepts and important points in a conversational way\n"
+            "5. Use simple, clear language as if speaking to the student\n\n"
             f"{context}"
             f"FILE CONTENT AND USER REQUEST:\n{msg}\n\n"
-            "YOUR ANALYSIS:"
+            "YOUR RESPONSE (Natural conversation, no markdown):"
         )
     else:
         return (
             "You are StudyMind AI, an intelligent study companion for students. "
-            "You help students learn by:\n"
-            "- Answering questions about any topic\n"
-            "- Explaining concepts in simple terms\n"
-            "- Analyzing uploaded study materials\n"
-            "- Creating summaries and study aids\n"
-            "- Providing educational guidance\n\n"
-            "Be helpful, clear, and encouraging. Use examples when appropriate. "
-            "Format your responses with markdown for better readability.\n\n"
+            "You help students learn by answering questions, explaining concepts, and providing guidance.\n\n"
+            "IMPORTANT: Keep your responses natural and conversational. "
+            "Do NOT use markdown formatting like asterisks, dashes, bullet points, or numbered lists. "
+            "Write as if you're chatting with the student naturally.\n\n"
+            "Be helpful, clear, and encouraging. Use examples when helpful but write naturally. "
+            "Speak in a friendly, conversational tone like a real tutor would.\n\n"
             f"{context}"
             f"STUDENT MESSAGE: {msg}\n\n"
-            "YOUR RESPONSE:"
+            "YOUR RESPONSE (Natural conversation, no markdown symbols):"
         )
 
 
