@@ -5,12 +5,13 @@ import { API_ENDPOINTS } from '@/config/api';
 
 export interface User {
   id: string;
-  email: string;
+  email: string | null;
+  isGuest?: boolean;
 }
 
 export interface Session {
   user: User;
-  access_token: string;
+  access_token?: string;
 }
 
 export interface AuthResponse {
@@ -169,6 +170,50 @@ class AuthClient {
   getAccessToken(): string | null {
     return this.session?.access_token || null;
   }
+
+  /**
+   * Continue as guest - creates a guest session with a unique guest ID
+   */
+  async continueAsGuest(): Promise<AuthResponse> {
+    try {
+      // Generate or retrieve guest ID from localStorage
+      let guestId = localStorage.getItem('guest_user_id');
+      if (!guestId) {
+        guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        localStorage.setItem('guest_user_id', guestId);
+      }
+
+      const session: Session = {
+        user: {
+          id: guestId,
+          email: null,
+          isGuest: true,
+        },
+        // No access_token for guests
+      };
+
+      this.saveSession(session);
+
+      return {
+        user: session.user,
+        session,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        user: null,
+        session: null,
+        error: error as Error,
+      };
+    }
+  }
+
+  /**
+   * Check if current user is a guest
+   */
+  isGuest(): boolean {
+    return this.session?.user?.isGuest === true;
+  }
 }
 
 // Export singleton instance
@@ -179,8 +224,10 @@ export const authHelpers = {
   signUp: (email: string, password: string) => authClient.signUp(email, password),
   signIn: (email: string, password: string) => authClient.signIn(email, password),
   signOut: () => authClient.signOut(),
+  continueAsGuest: () => authClient.continueAsGuest(),
   getSession: () => Promise.resolve(authClient.getSession()),
   getUser: () => authClient.getUser(),
+  isGuest: () => authClient.isGuest(),
   onAuthStateChange: (callback: (session: Session | null) => void) => 
     authClient.onAuthStateChange(callback),
 };

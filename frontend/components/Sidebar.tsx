@@ -165,10 +165,14 @@ export default function Sidebar({
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-gray-200">{user.email}</p>
+                  <p className="font-medium truncate text-gray-200">
+                    {user.email || (user.isGuest ? 'Guest User' : 'User')}
+                  </p>
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-gray-400">Online</span>
+                    <span className="text-xs text-gray-400">
+                      {user.isGuest ? 'Guest Mode' : 'Online'}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -161,9 +161,26 @@ def optional_auth(f):
             except:
                 pass  # Silently fail for optional auth
         
-        # If no valid auth, set default user
+        # If no valid auth, check for guest user ID from request or set default user
         if not hasattr(request, 'user'):
-            request.user = {'user_id': 'default_user', 'email': None, 'role': 'anonymous'}
+            # Check if there's a guest user ID in the request (from frontend)
+            guest_id = None
+            
+            # Check JSON body (POST/PUT requests)
+            if request.is_json and request.json:
+                guest_id = request.json.get('guest_user_id')
+            
+            # Check query parameters (GET requests)
+            if not guest_id:
+                guest_id = request.args.get('guest_user_id')
+            
+            # Check custom header (fallback)
+            if not guest_id:
+                guest_id = request.headers.get('X-Guest-User-Id')
+            
+            # Use guest ID if provided, otherwise use default_user
+            user_id = guest_id if guest_id else 'default_user'
+            request.user = {'user_id': user_id, 'email': None, 'role': 'anonymous'}
         
         return f(*args, **kwargs)
     

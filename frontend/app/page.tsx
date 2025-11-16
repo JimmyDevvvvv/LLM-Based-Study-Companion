@@ -21,7 +21,7 @@ import AuthModal from "@/components/AuthModal";
 
 export default function StudyMind() {
   // Auth hook
-  const { user, loading: authLoading, getUserId, isAuthenticated, getAccessToken } = useAuth();
+  const { user, loading: authLoading, getUserId, isAuthenticated, getAccessToken, isGuest, continueAsGuest } = useAuth();
   const userId = getUserId();
   const accessToken = getAccessToken();
   
@@ -52,12 +52,23 @@ export default function StudyMind() {
   const [threadLoading, setThreadLoading] = useState<boolean>(false);
   const autoSaveDisabledRef = useRef<boolean>(false);
 
-  // Auto-show auth modal if user is not authenticated
+  // Auto-initialize guest mode or show auth modal if user is not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      setShowAuthModal(true);
+      // Try to continue as guest automatically
+      const savedGuestId = localStorage.getItem('guest_user_id');
+      if (savedGuestId) {
+        // Resume guest session
+        continueAsGuest().catch(() => {
+          // If guest mode fails, show auth modal
+          setShowAuthModal(true);
+        });
+      } else {
+        // No guest session, show auth modal
+        setShowAuthModal(true);
+      }
     }
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, continueAsGuest]);
 
   const {
     conversations,
@@ -305,9 +316,9 @@ export default function StudyMind() {
           onShowAuth={() => setShowAuthModal(true)}
         />
 
-        {/* Module Views - All require authentication */}
+        {/* Module Views - Available to authenticated users and guests */}
         {!isAuthenticated && activeTab !== 'chat' ? (
-          // Login Required for all features
+          // Login or Guest Required for all features
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center p-8 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl max-w-md mx-4`}>
               <div className="mb-6">
@@ -317,18 +328,29 @@ export default function StudyMind() {
                   </svg>
                 </div>
                 <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                  Authentication Required
+                  Sign In or Continue as Guest
                 </h2>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-6`}>
-                  Please sign in to access StudyMind AI features.
+                  Please sign in or continue as guest to access StudyMind AI features.
                 </p>
               </div>
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                Sign In / Sign Up
-              </button>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  Sign In / Sign Up
+                </button>
+                <button
+                  onClick={async () => {
+                    await continueAsGuest();
+                    setShowAuthModal(false);
+                  }}
+                  className="w-full px-6 py-3 border-2 border-indigo-500 text-indigo-500 rounded-lg font-semibold hover:bg-indigo-500 hover:text-white transition-all duration-300 transform hover:scale-105"
+                >
+                  Continue as Guest
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -381,7 +403,7 @@ export default function StudyMind() {
         {activeTab === 'chat' && (
           <div className="flex-1 overflow-y-auto">
             {!isAuthenticated ? (
-              // Login Required Overlay
+              // Login or Guest Required Overlay
               <div className="flex items-center justify-center h-full">
                 <div className={`text-center p-8 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl max-w-md mx-4`}>
                   <div className="mb-6">
@@ -391,18 +413,29 @@ export default function StudyMind() {
                       </svg>
                     </div>
                     <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                      Authentication Required
+                      Sign In or Continue as Guest
                     </h2>
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-6`}>
-                      Please sign in to access StudyMind AI and start your learning journey.
+                      Please sign in or continue as guest to access StudyMind AI and start your learning journey.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowAuthModal(true)}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
-                  >
-                    Sign In / Sign Up
-                  </button>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => setShowAuthModal(true)}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    >
+                      Sign In / Sign Up
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await continueAsGuest();
+                        setShowAuthModal(false);
+                      }}
+                      className="w-full px-6 py-3 border-2 border-indigo-500 text-indigo-500 rounded-lg font-semibold hover:bg-indigo-500 hover:text-white transition-all duration-300 transform hover:scale-105"
+                    >
+                      Continue as Guest
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -478,11 +511,11 @@ export default function StudyMind() {
         )}
       </div>
 
-      {/* Auth Modal - Cannot close if not authenticated */}
+      {/* Auth Modal - Can close if authenticated or if user chooses guest mode */}
       <AuthModal 
         isOpen={showAuthModal}
         onClose={() => {
-          // Only allow closing if user is authenticated
+          // Allow closing if user is authenticated (including guests)
           if (isAuthenticated) {
             setShowAuthModal(false);
           }

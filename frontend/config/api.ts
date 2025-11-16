@@ -181,7 +181,20 @@ export const apiUtils = {
     }
   },
   /**
-   * Get auth headers (if user is logged in)
+   * Get guest user ID from localStorage if available
+   */
+  getGuestUserId(): string | null {
+    try {
+      if (typeof window === 'undefined') return null;
+      const guestId = localStorage.getItem('guest_user_id');
+      return guestId;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Get auth headers (if user is logged in) or include guest user ID
    */
   getAuthHeaders(accessToken?: string | null): HeadersInit {
     const headers: HeadersInit = {
@@ -215,6 +228,15 @@ export const apiUtils = {
    * Generic POST request helper with optional auth
    */
   async post<T = any>(endpoint: string, body: any, accessToken?: string | null): Promise<T> {
+    // Include guest_user_id if user is a guest and not already in body
+    const token = accessToken ?? this.getSavedAccessToken();
+    if (!token) {
+      const guestId = this.getGuestUserId();
+      if (guestId && body && typeof body === 'object' && !body.guest_user_id) {
+        body = { ...body, guest_user_id: guestId };
+      }
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: this.getAuthHeaders(accessToken),
@@ -235,6 +257,15 @@ export const apiUtils = {
     const headers: HeadersInit = this.getAuthHeaders(accessToken);
     delete (headers as any)['Content-Type'];
 
+    // Include guest_user_id as header if user is a guest
+    const token = accessToken ?? this.getSavedAccessToken();
+    if (!token) {
+      const guestId = this.getGuestUserId();
+      if (guestId) {
+        headers['X-Guest-User-Id'] = guestId;
+      }
+    }
+
     const response = await fetch(endpoint, {
       headers,
     });
@@ -250,6 +281,15 @@ export const apiUtils = {
    * Generic PUT request helper with optional auth
    */
   async put<T = any>(endpoint: string, body: any, accessToken?: string | null): Promise<T> {
+    // Include guest_user_id if user is a guest and not already in body
+    const token = accessToken ?? this.getSavedAccessToken();
+    if (!token) {
+      const guestId = this.getGuestUserId();
+      if (guestId && body && typeof body === 'object' && !body.guest_user_id) {
+        body = { ...body, guest_user_id: guestId };
+      }
+    }
+
     const response = await fetch(endpoint, {
       method: 'PUT',
       headers: this.getAuthHeaders(accessToken),
@@ -269,6 +309,15 @@ export const apiUtils = {
   async delete<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
     const headers: HeadersInit = this.getAuthHeaders(accessToken);
     delete (headers as any)['Content-Type'];
+
+    // Include guest_user_id as header if user is a guest
+    const token = accessToken ?? this.getSavedAccessToken();
+    if (!token) {
+      const guestId = this.getGuestUserId();
+      if (guestId) {
+        headers['X-Guest-User-Id'] = guestId;
+      }
+    }
 
     const response = await fetch(endpoint, {
       method: 'DELETE',
@@ -293,6 +342,12 @@ export const apiUtils = {
     const token = accessToken ?? this.getSavedAccessToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      // Include guest_user_id as header if user is a guest
+      const guestId = this.getGuestUserId();
+      if (guestId) {
+        headers['X-Guest-User-Id'] = guestId;
+      }
     }
 
     const response = await fetch(API_ENDPOINTS.upload, {

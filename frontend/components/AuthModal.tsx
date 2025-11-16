@@ -20,7 +20,7 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, continueAsGuest } = useAuth();
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -246,19 +246,45 @@ export default function AuthModal({ isOpen, onClose, isDark }: AuthModalProps) {
             </button>
           </div>
 
-          {/* Guest mode note */}
-          <div className={`mt-6 p-4 rounded-2xl backdrop-blur-lg border ${
-            isDark
-              ? 'bg-slate-900/70 border-slate-800/70 text-slate-300'
-              : 'bg-white/90 border-slate-200/70 text-slate-600'
-          } text-xs font-medium`}>
-            <div className="flex gap-2">
-              <span className="text-lg">💡</span>
-              <div>
-                <strong className="text-indigo-500 dark:text-indigo-300">Continue as Guest</strong>
-                <p className="mt-1 opacity-90">Use StudyMind without signing in. Your data will be saved locally.</p>
+          {/* Guest mode button */}
+          <div className="mt-6">
+            <button
+              onClick={async () => {
+                setLoading(true);
+                setError("");
+                setSuccess("");
+                try {
+                  const { error } = await continueAsGuest();
+                  if (error) {
+                    setError(error.message || "Failed to continue as guest");
+                  } else {
+                    setSuccess("Welcome! You're using StudyMind as a guest.");
+                    setTimeout(() => {
+                      onClose();
+                      setSuccess("");
+                    }, 1000);
+                  }
+                } catch (err) {
+                  setError("An unexpected error occurred");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className={`w-full py-3 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 border-2 ${
+                isDark
+                  ? 'bg-slate-900/70 border-slate-700/70 text-slate-200 hover:bg-slate-800/90 hover:border-indigo-500/50'
+                  : 'bg-white/90 border-slate-300/70 text-slate-700 hover:bg-slate-50 hover:border-indigo-400'
+              } backdrop-blur-lg shadow-lg`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-lg">👤</span>
+                <span>Continue as Guest</span>
               </div>
-            </div>
+              <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Your data will be saved locally
+              </p>
+            </button>
           </div>
         </div>
       </div>

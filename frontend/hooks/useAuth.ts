@@ -48,8 +48,18 @@ export function useAuth() {
     if (!error) {
       setUser(null);
       setSession(null);
+      // Clear guest ID on sign out
+      localStorage.removeItem('guest_user_id');
     }
     return { error };
+  };
+
+  const continueAsGuest = async () => {
+    const result = await authHelpers.continueAsGuest();
+    return {
+      data: result.session ? { session: result.session, user: result.user } : null,
+      error: result.error
+    };
   };
 
   // Get access token for API requests
@@ -62,6 +72,11 @@ export function useAuth() {
     return user?.id || 'default_user';
   };
 
+  // Check if user is guest
+  const isGuest = () => {
+    return authHelpers.isGuest();
+  };
+
   return {
     user,
     session,
@@ -69,8 +84,10 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    continueAsGuest,
     getAccessToken,
     getUserId,
-    isAuthenticated: !!user,
+    isGuest,
+    isAuthenticated: !!user, // Both authenticated and guest users are considered "authenticated" for UI purposes
   };
 }
