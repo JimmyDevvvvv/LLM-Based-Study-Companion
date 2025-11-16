@@ -52,20 +52,26 @@ export default function StudyMind() {
   const [threadLoading, setThreadLoading] = useState<boolean>(false);
   const autoSaveDisabledRef = useRef<boolean>(false);
 
-  // Auto-initialize guest mode or show auth modal if user is not authenticated
+  // Auto-initialize guest mode if user is not authenticated
+  const autoInitializedRef = useRef<boolean>(false);
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated && !autoInitializedRef.current) {
+      autoInitializedRef.current = true;
       // Try to continue as guest automatically
       const savedGuestId = localStorage.getItem('guest_user_id');
       if (savedGuestId) {
-        // Resume guest session
-        continueAsGuest().catch(() => {
-          // If guest mode fails, show auth modal
+        // Resume guest session (no need to show auth modal)
+        continueAsGuest().catch(err => {
+          console.error('Failed to resume guest session:', err);
+          // Only show modal if guest initialization truly fails
           setShowAuthModal(true);
         });
       } else {
-        // No guest session, show auth modal
-        setShowAuthModal(true);
+        // New guest - auto-initialize without showing auth modal
+        continueAsGuest().catch(err => {
+          console.error('Failed to initialize guest session:', err);
+          setShowAuthModal(true);
+        });
       }
     }
   }, [authLoading, isAuthenticated, continueAsGuest]);
@@ -317,8 +323,8 @@ export default function StudyMind() {
         />
 
         {/* Module Views - Available to authenticated users and guests */}
-        {!isAuthenticated && activeTab !== 'chat' ? (
-          // Login or Guest Required for all features
+        {!isAuthenticated ? (
+          // Not authenticated at all - should not reach here (auto-init guest)
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center p-8 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl max-w-md mx-4`}>
               <div className="mb-6">
@@ -355,7 +361,7 @@ export default function StudyMind() {
           </div>
         ) : (
           <>
-            {activeTab === 'content' && isAuthenticated && (
+            {activeTab === 'content' && (
               <ContentGeneration
                 isDark={isDark}
                 userId={userId}
@@ -365,15 +371,15 @@ export default function StudyMind() {
               />
             )}
 
-            {activeTab === 'grading' && isAuthenticated && (
+            {activeTab === 'grading' && (
               <GradingFeedback isDark={isDark} />
             )}
 
-            {activeTab === 'quiz' && isAuthenticated && (
+            {activeTab === 'quiz' && (
               <QuizGenerator isDark={isDark} ctxText={ctxText} setToast={setToast} />
             )}
 
-            {activeTab === 'admin' && isAuthenticated && (
+            {activeTab === 'admin' && (
               <div className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
                   <AdminTools isDark={isDark} />
@@ -381,7 +387,7 @@ export default function StudyMind() {
               </div>
             )}
 
-            {activeTab === 'ideas' && isAuthenticated && (
+            {activeTab === 'ideas' && (
               <div className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
                   <ProjectIdeas isDark={isDark} />
@@ -389,7 +395,7 @@ export default function StudyMind() {
               </div>
             )}
 
-            {activeTab === 'help' && isAuthenticated && (
+            {activeTab === 'help' && (
               <div className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
                   <HelpMentor isDark={isDark} />
@@ -403,7 +409,7 @@ export default function StudyMind() {
         {activeTab === 'chat' && (
           <div className="flex-1 overflow-y-auto">
             {!isAuthenticated ? (
-              // Login or Guest Required Overlay
+              // Not authenticated - should not reach here (auto-init guest)
               <div className="flex items-center justify-center h-full">
                 <div className={`text-center p-8 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl max-w-md mx-4`}>
                   <div className="mb-6">

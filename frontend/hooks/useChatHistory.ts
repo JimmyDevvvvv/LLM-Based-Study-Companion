@@ -17,6 +17,9 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
   const [error, setError] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const creatingRef = useRef<boolean>(false);
+  
+  // Determine if user is a guest (no access token)
+  const isGuest = !accessToken;
 
   const dedupeById = (items: Conversation[]): Conversation[] => {
     const seen = new Set<string>();
@@ -30,9 +33,48 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
     return result;
   };
 
+  // Load guest conversations from localStorage
+  const loadGuestConversations = useCallback(() => {
+    if (!userId) return;
+    try {
+      const key = `guestConversations_${userId}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const conversations = JSON.parse(stored) as Conversation[];
+        setConversations(conversations);
+      } else {
+        setConversations([]);
+      }
+      setError(null);
+    } catch (err) {
+      console.error("Error loading guest conversations:", err);
+      setConversations([]);
+    }
+  }, [userId]);
+
+  // Save guest conversations to localStorage
+  const saveGuestConversations = useCallback((convs: Conversation[]) => {
+    if (!userId) return;
+    try {
+      const key = `guestConversations_${userId}`;
+      localStorage.setItem(key, JSON.stringify(convs));
+    } catch (err) {
+      console.error("Error saving guest conversations:", err);
+    }
+  }, [userId]);
+
   // Load all conversations for the user
   const loadConversations = useCallback(async () => {
     if (!userId) return;
+    
+    // For guests, load from localStorage
+    if (isGuest) {
+      loadGuestConversations();
+      setLoading(false);
+      return;
+    }
+
+    // For authenticated users, load from backend
     try {
       setLoading(true);
       const data = await apiUtils.get<{ conversations: any[] }>(API_ENDPOINTS.conversations(userId), accessToken);
@@ -53,7 +95,7 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, accessToken, isGuest, loadGuestConversations]);
 
   // Load conversations on mount
   useEffect(() => {
@@ -77,6 +119,29 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
     }
     try {
       creatingRef.current = true;
+      
+      if (isGuest) {
+        // For guests, create in-memory conversation
+        const newId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        const newConversation: Conversation = {
+          id: newId,
+          title,
+          lastMessage: "",
+          timestamp: new Date().toISOString(),
+          messages: []
+        };
+        
+        setConversations(prev => {
+          const merged = [newConversation, ...prev];
+          saveGuestConversations(merged);
+          return merged;
+        });
+        setCurrentConversationId(newId);
+        
+        return newId;
+      }
+      
+      // For authenticated users, create on backend
       const data = await apiUtils.post<{ conversation: any }>(API_ENDPOINTS.conversations(userId), { title }, accessToken);
       const newConversation = data.conversation;
       
@@ -109,6 +174,23 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
   const loadConversation = async (conversationId: string): Promise<Message[] | null> => {
     if (!userId || !conversationId) return null;
     try {
+      if (isGuest) {
+        // For guests, load from in-memory conversations
+        const conversation = conversations.find(c => c.id === conversationId);
+        setCurrentConversationId(conversationId);
+        
+        if (!conversation) return [];
+        
+        // Convert message timestamps back to Date objects
+        const messages = (conversation.messages || []).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        
+        return messages;
+      }
+      
+      // For authenticated users, load from backend
       const data = await apiUtils.get<{ conversation: any }>(API_ENDPOINTS.conversation(userId, conversationId), accessToken);
       const conversation = data.conversation;
       
@@ -136,6 +218,33 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
   ): Promise<boolean> => {
     if (!userId || !conversationId) return false;
     try {
+      if (isGuest) {
+        // For guests, update in-memory conversation
+        const messagesData = messages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
+        })) as any[];
+
+        setConversations(prev => {
+          const updated = prev.map(conv =>
+            conv.id === conversationId
+              ? ({
+                  ...conv,
+                  title: title || conv.title,
+                  lastMessage: messages[messages.length - 1]?.content || conv.lastMessage || "",
+                  timestamp: new Date().toISOString(),
+                  messages: messagesData
+                } as Conversation)
+              : conv
+          );
+          saveGuestConversations(updated);
+          return updated;
+        });
+        
+        return true;
+      }
+      
+      // For authenticated users, update on backend
       // Convert messages to plain objects with ISO timestamps
       const messagesData = messages.map(msg => ({
         id: msg.id,
@@ -195,7 +304,15 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
         setCurrentConversationId(null);
       }
       
-      // Make the API request
+      if (isGuest) {
+        // For guests, just update localStorage
+        const filtered = previousConversations.filter(c => c.id !== conversationId);
+        saveGuestConversations(filtered);
+        setError(null);
+        return true;
+      }
+      
+      // For authenticated users, make the API request
       await apiUtils.delete(API_ENDPOINTS.conversation(userId, conversationId), accessToken);
       
       setError(null);
