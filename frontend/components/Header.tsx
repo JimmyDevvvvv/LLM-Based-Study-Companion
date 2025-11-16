@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Menu, Star, Zap, ChevronDown, Check, Moon, Sun } from "lucide-react";
+import { Menu, ChevronDown, Check, Moon, Sun } from "lucide-react";
 import { User } from "@/utils/authClient";
 import { themeClasses } from "@/utils/themeStyles";
 
@@ -60,11 +60,6 @@ export default function Header({
             <h1 className={`text-xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-sky-400 bg-clip-text text-transparent`}>
               StudyMind AI
             </h1>
-            <div className="flex items-center space-x-1">
-              {[...Array(3)].map((_, i) => (
-                <Star key={i} className="w-4 h-4 text-yellow-400 animate-[pulse_2s_infinite]" style={{animationDelay: `${i * 0.2}s`}} />
-              ))}
-            </div>
           </div>
         </div>
 
@@ -143,10 +138,6 @@ export default function Header({
             <div className="flex items-center space-x-2 text-sm text-slate-500">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_1.8s_infinite] shadow-green-500/40"></div>
               <span className="hidden sm:inline">AI Online</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Zap className="w-4 h-4 text-yellow-500 animate-bounce" />
-              <span className="text-xs text-yellow-600 font-medium hidden sm:inline">Pro</span>
             </div>
           </div>
         </div>
