@@ -159,30 +159,43 @@ export default function Sidebar({
         {/* User Section */}
         <div className={`p-4 border-t ${isDark ? 'border-slate-800/70' : 'border-slate-700/60'} backdrop-blur-sm`}>
           {isAuthenticated && user ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 text-sm">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-sky-500 rounded-full flex items-center justify-center shadow-md shadow-emerald-500/30">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-gray-200">
-                    {user.email || (user.isGuest ? 'Guest User' : 'User')}
-                  </p>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-gray-400">
-                      {user.isGuest ? 'Guest Mode' : 'Online'}
-                    </span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3 text-sm">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-sky-500 rounded-full flex items-center justify-center shadow-md shadow-emerald-500/30">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-gray-200">
+                      {user.email || (user.isGuest ? 'Guest User' : 'User')}
+                    </p>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-gray-400">
+                        {user.isGuest ? 'Guest Mode' : 'Online'}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <button
+                  onClick={handleSignOut}
+                  className="p-2 hover:bg-slate-900/70 rounded-lg transition-colors group"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-400 transition-colors" />
+                </button>
               </div>
-              <button
-                onClick={handleSignOut}
-                className="p-2 hover:bg-slate-900/70 rounded-lg transition-colors group"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-400 transition-colors" />
-              </button>
+              
+              {user.isGuest && (
+                <button
+                  onClick={onShowAuth}
+                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-purple-500/30 text-sm font-semibold"
+                  title="Sign in or create an account"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Sign In / Sign Up</span>
+                </button>
+              )}
             </div>
           ) : (
             <button
