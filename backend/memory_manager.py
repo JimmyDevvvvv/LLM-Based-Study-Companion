@@ -106,7 +106,7 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
 
         try:
             # Use Gemini API for extraction
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             response = model.generate_content(
                 extraction_prompt,
                 generation_config={

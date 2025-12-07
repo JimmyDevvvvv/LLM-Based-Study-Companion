@@ -57,8 +57,9 @@ else:
     genai.configure(api_key=GEMINI_API_KEY)
     print("✅ Gemini API configured")
 
-# Model configuration
-MODEL_NAME = "gemini-2.5-pro"
+# Model configuration - using free tier compatible model
+# Available models: gemini-pro (free tier), gemini-1.5-pro, gemini-1.5-flash
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # Free tier compatible
 
 # Configure Database
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -129,8 +130,18 @@ def _gemini_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 20
             return "I apologize, but I couldn't generate a response. Please try rephrasing."
             
     except Exception as e:
-        print(f"Gemini API Error: {str(e)}")
-        raise Exception(f"Failed to generate content: {str(e)}")
+        error_str = str(e)
+        print(f"Gemini API Error: {error_str}")
+        
+        # Check if it's a quota error and provide user-friendly message
+        if "quota" in error_str.lower() or "429" in error_str:
+            raise Exception(
+                "API quota exceeded. The free tier limit has been reached. "
+                "Please try again later or upgrade your API plan. "
+                "Error details: API rate limit exceeded."
+            )
+        
+        raise Exception(f"Failed to generate content: {error_str}")
 
 
 def _extract_text_from_pdf(file_path: str) -> str:
@@ -791,10 +802,13 @@ def study_assist():
         return jsonify(result), status_code
         
     except Exception as e:
+        error_str = str(e)
+        error_type = "quota_exceeded" if "quota" in error_str.lower() else "internal_error"
+        
         return jsonify({
             "success": False,
-            "error": "internal_error",
-            "message": str(e)
+            "error": error_type,
+            "message": error_str
         }), 500
 
 

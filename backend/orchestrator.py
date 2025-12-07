@@ -157,7 +157,7 @@ def keyword_classify(query: str) -> Optional[Tuple[str, float]]:
     return None
 
 
-def llm_classify_intent(query: str, model_name: str = "gemini-2.5-pro") -> Tuple[str, float, Dict]:
+def llm_classify_intent(query: str, model_name: str = "gemini-2.5-flash") -> Tuple[str, float, Dict]:
     """
     Use LLM to classify user intent and extract parameters.
     Returns (intent, confidence, extracted_params)
@@ -240,7 +240,18 @@ Important:
             return ("chat", 0.5, {})
             
     except Exception as e:
-        print(f"Error in LLM classification: {e}")
+        error_str = str(e)
+        print(f"Error in LLM classification: {error_str}")
+        
+        # Check if it's a quota error
+        if "quota" in error_str.lower() or "429" in error_str:
+            raise Exception(
+                "API quota exceeded. The free tier for this model has been reached. "
+                "Please try again later or contact support. "
+                f"Details: {error_str[:200]}"
+            )
+        
+        # For other errors, fall back to chat with low confidence
         return ("chat", 0.5, {})
 
 
