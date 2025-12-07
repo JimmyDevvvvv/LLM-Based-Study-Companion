@@ -160,6 +160,14 @@ export const API_ENDPOINTS = {
   get history() {
     return endpoint('/history');
   },
+  
+  // Orchestration
+  get studyAssist() {
+    return endpoint('/study/assist');
+  },
+  get orchestrationStats() {
+    return endpoint('/orchestration/stats');
+  },
 };
 
 /**

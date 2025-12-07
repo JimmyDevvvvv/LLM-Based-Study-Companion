@@ -36,13 +36,7 @@ export default function Header({
 }: HeaderProps) {
   const theme = useMemo(() => themeClasses(isDark), [isDark]);
   const tabs = [
-    { key: 'chat', label: 'Chat' },
-    { key: 'content', label: 'Content Generation' },
-    { key: 'grading', label: 'Grading & Feedback' },
-    { key: 'quiz', label: 'Quiz Generator' },
-    { key: 'admin', label: 'Admin Tools' },
-    { key: 'ideas', label: 'Project Ideas' },
-    { key: 'help', label: 'Help' },
+    { key: 'assist', label: 'Study Assistant' },
   ];
 
   return (
@@ -63,31 +57,7 @@ export default function Header({
           </div>
         </div>
 
-        {/* Tabs + Tone Selector */}
         <div className="flex items-center space-x-4">
-          {/* App Tabs */}
-          <div className="hidden md:flex items-center space-x-2 mr-2">
-            {tabs.map((t, idx) => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`relative px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 group overflow-hidden ${
-                  activeTab === t.key
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-purple-500/40'
-                    : isDark
-                      ? 'text-slate-300 border border-slate-700/50 hover:bg-slate-900/60'
-                      : 'text-slate-700 border border-slate-200 hover:bg-white'
-                }`}
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                {activeTab === t.key && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 opacity-20 animate-pulse"></div>
-                )}
-                <span className="relative z-10">{t.label}</span>
-              </button>
-            ))}
-          </div>
-
           {/* Tone Selector */}
           <div className="relative">
             <button

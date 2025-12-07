@@ -3,21 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Conversation, Message } from "@/types";
 import { useTheme } from "@/hooks/useTheme";
-import { useChat } from "@/hooks/useChat";
-import { useTone } from "@/hooks/useTone";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { useAuth } from "@/hooks/useAuth";
+import { useTone } from "@/hooks/useTone";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import ChatMessage from "@/components/ChatMessage";
-import ChatInput from "@/components/ChatInput";
-import ContentGeneration from "@/components/ContentGeneration";
-import GradingFeedback from "@/components/GradingFeedback";
-import QuizGenerator from "@/components/QuizGenerator";
-import AdminTools from "@/components/AdminTools";
-import ProjectIdeas from "@/components/ProjectIdeas";
-import HelpMentor from "@/components/HelpMentor";
 import AuthModal from "@/components/AuthModal";
+import StudyAssist from "@/components/StudyAssist";
 
 export default function StudyMind() {
   // Auth hook
@@ -26,31 +18,15 @@ export default function StudyMind() {
   const accessToken = getAccessToken();
   
   const { isDark, mounted, toggleTheme } = useTheme();
-  const {
-    messages,
-    setMessages,
-    inputText,
-    setInputText,
-    loading,
-    isTyping,
-    messagesEndRef,
-    inputRef,
-    handleSend,
-    handleKeyPress,
-    handleInputResize,
-    handleFileUpload
-  } = useChat(userId);
   
-  const { tone, toneMenuOpen, setToneMenuOpen, availableTones, changeTone } = useTone(userId, setMessages);
+  // Tone management - need a dummy setMessages for useTone hook
+  const [dummyMessages, setDummyMessages] = useState<any[]>([]);
+  const { tone, toneMenuOpen, setToneMenuOpen, availableTones, changeTone } = useTone(userId, setDummyMessages);
 
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>("chat");
-  const [ctxText, setCtxText] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("assist");
   const [toast, setToast] = useState<string>("");
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const initializedRef = useRef<boolean>(false);
-  const [threadLoading, setThreadLoading] = useState<boolean>(false);
-  const autoSaveDisabledRef = useRef<boolean>(false);
 
   // Auto-initialize guest mode if user is not authenticated
   const autoInitializedRef = useRef<boolean>(false);
@@ -105,156 +81,21 @@ export default function StudyMind() {
     }
   }, [convError]);
 
-  // Initialize: Load existing conversation or create new one (only once)
-  useEffect(() => {
-    if (initializedRef.current || authLoading || !userId || convLoading) return;
-    
-    const initialize = async () => {
-      if (conversations.length === 0) {
-        // No conversations exist, create a new one
-        if (!currentConversationId) {
-          await startNewConversation();
-        }
-      } else {
-        // Conversations exist, load the appropriate one
-        const targetConvId = currentConversationId && conversations.find(c => c.id === currentConversationId)
-          ? currentConversationId
-          : conversations[0]?.id;
-        
-        if (targetConvId) {
-          await handleConversationSelect(targetConvId);
-        }
-      }
-      initializedRef.current = true;
-    };
 
-    initialize();
-  }, [conversations.length, userId, authLoading, convLoading]);
-
-  // Auto-save conversation when messages change (debounced)
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  const persistCurrentConversation = useRef<((messagesOverride?: Message[]) => Promise<void>) | null>(null);
-
-  persistCurrentConversation.current = async (messagesOverride?: Message[]) => {
-    if (!currentConversationId) return;
-    const messagesToSave = messagesOverride ?? messages;
-    if (messagesToSave.length === 0) return;
-
-    const currentConv = conversations.find(c => c.id === currentConversationId);
-    const shouldUpdateTitle =
-      currentConv && currentConv.title === "New Conversation" && messagesToSave.some(msg => msg.type === "user");
-
-    const title = shouldUpdateTitle ? generateTitle(messagesToSave) : undefined;
-    await updateConversation(currentConversationId, messagesToSave, title);
-  };
-
-  useEffect(() => {
-    // Clear previous timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    if (autoSaveDisabledRef.current) {
-      return;
-    }
-
-    // Only save if we have messages and a conversation
-    if (currentConversationId && messages.length > 0) {
-      // Debounce the save by 2 seconds
-      saveTimeoutRef.current = setTimeout(async () => {
-        if (persistCurrentConversation.current) {
-          try {
-            await persistCurrentConversation.current();
-          } catch (err) {
-            console.error("Failed to auto-save conversation:", err);
-          }
-        }
-      }, 2000);
-    }
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [messages, currentConversationId, conversations, generateTitle, updateConversation]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
     localStorage.setItem('sidebarOpen', (!sidebarOpen).toString());
   };
 
-  // Ensure a conversation exists before sending
-  const handleSendEnsured = async () => {
-    if (!currentConversationId) {
-      await startNewConversation();
-    }
-    await handleSend();
-  };
-
-  // Optimistically update sidebar lastMessage like ChatGPT when messages change
-  useEffect(() => {
-    if (!currentConversationId || messages.length === 0) return;
-    const last = messages[messages.length - 1];
-    if (!last?.content) return;
-    optimisticUpdatePreview(currentConversationId, last.content);
-  }, [messages, currentConversationId, optimisticUpdatePreview]);
   const startNewConversation = async () => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-    if (persistCurrentConversation.current) {
-      try {
-        await persistCurrentConversation.current();
-      } catch (err) {
-        console.error("Failed to save conversation before starting a new one:", err);
-      }
-    }
-    const conversationId = await createConversation("New Conversation");
-    if (conversationId) {
-      const initialMessage: Message = {
-        id: Date.now(),
-        type: 'assistant',
-        content: isAuthenticated 
-          ? `Hello ${user?.email}! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials, or upload files (PDF, TXT) and I'll help you learn! What would you like to study today?`
-          : "Hello! I'm StudyMind AI, your intelligent study companion. ✨ Ask me anything, share study materials, or upload files (PDF, TXT) and I'll help you learn! What would you like to study today?",
-        timestamp: new Date()
-      };
-      setMessages([initialMessage]);
-      await updateConversation(conversationId, [initialMessage]);
-    }
+    await createConversation("New Conversation");
   };
 
   const handleConversationSelect = async (conversationId: string) => {
     // Don't reload if we're already on this conversation
     if (conversationId === currentConversationId) return;
-    
-    // Clear messages while loading
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-    if (persistCurrentConversation.current) {
-      try {
-        await persistCurrentConversation.current();
-      } catch (err) {
-        console.error("Failed to save conversation before switching:", err);
-      }
-    }
-    autoSaveDisabledRef.current = true;
-    setMessages([]);
-    setThreadLoading(true);
-    try {
-      const loadedMessages = await loadConversation(conversationId);
-      if (loadedMessages) {
-        setMessages(loadedMessages);
-      }
-    } finally {
-      setThreadLoading(false);
-      autoSaveDisabledRef.current = false;
-    }
+    setCurrentConversationId(conversationId);
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
@@ -322,9 +163,8 @@ export default function StudyMind() {
           onShowAuth={() => setShowAuthModal(true)}
         />
 
-        {/* Module Views - Available to authenticated users and guests */}
+        {/* Main Content - Study Assistant */}
         {!isAuthenticated ? (
-          // Not authenticated at all - should not reach here (auto-init guest)
           <div className="flex-1 flex items-center justify-center">
             <div className={`text-center p-8 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl max-w-md mx-4`}>
               <div className="mb-6">
@@ -360,154 +200,14 @@ export default function StudyMind() {
             </div>
           </div>
         ) : (
-          <>
-            {activeTab === 'content' && (
-              <ContentGeneration
-                isDark={isDark}
-                userId={userId}
-                ctxText={ctxText}
-                setCtxText={setCtxText}
-                setToast={setToast}
-              />
-            )}
-
-            {activeTab === 'grading' && (
-              <GradingFeedback isDark={isDark} />
-            )}
-
-            {activeTab === 'quiz' && (
-              <QuizGenerator isDark={isDark} ctxText={ctxText} setToast={setToast} />
-            )}
-
-            {activeTab === 'admin' && (
-              <div className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                  <AdminTools isDark={isDark} />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'ideas' && (
-              <div className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                  <ProjectIdeas isDark={isDark} />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'help' && (
-              <div className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                  <HelpMentor isDark={isDark} />
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Chat */}
-        {activeTab === 'chat' && (
-          <div className="flex-1 overflow-y-auto">
-            {!isAuthenticated ? (
-              // Not authenticated - should not reach here (auto-init guest)
-              <div className="flex items-center justify-center h-full">
-                <div className={`text-center p-8 rounded-2xl ${isDark ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-xl border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl max-w-md mx-4`}>
-                  <div className="mb-6">
-                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                      Sign In or Continue as Guest
-                    </h2>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-6`}>
-                      Please sign in or continue as guest to access StudyMind AI and start your learning journey.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => setShowAuthModal(true)}
-                      className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
-                    >
-                      Sign In / Sign Up
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await continueAsGuest();
-                        setShowAuthModal(false);
-                      }}
-                      className="w-full px-6 py-3 border-2 border-indigo-500 text-indigo-500 rounded-lg font-semibold hover:bg-indigo-500 hover:text-white transition-all duration-300 transform hover:scale-105"
-                    >
-                      Continue as Guest
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="max-w-4xl mx-auto px-4 sm:px-6">
-                {threadLoading ? (
-                  <div className="py-8">
-                    <div className={`h-6 w-40 mb-4 rounded ${isDark ? 'bg-gray-800/50' : 'bg-gray-200/70'} animate-pulse`} />
-                    <div className={`space-y-4`}>
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className={`h-20 rounded-xl ${isDark ? 'bg-gray-800/30' : 'bg-gray-100/70'} animate-pulse`} />
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {messages.map((message, index) => (
-                      <ChatMessage
-                        key={message.id}
-                        message={message}
-                        index={index}
-                        isDark={isDark}
-                      />
-                    ))}
-                  </>
-                )}
-
-                {/* Typing Indicator */}
-                {isTyping && (
-                  <div className={`py-8 ${isDark ? 'bg-gray-800/30' : 'bg-gray-50/50'} backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2`}>
-                    <div className="flex items-start space-x-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-lg animate-pulse">
-                        AI
-                      </div>
-                      <div className="flex items-center space-x-2 text-gray-500">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                        </div>
-                        <span className="text-sm italic">AI is thinking...</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Chat Input Area - Only show if authenticated */}
-        {activeTab === 'chat' && isAuthenticated && (
-          <ChatInput
+          <StudyAssist
             isDark={isDark}
-            inputText={inputText}
-            loading={loading}
-            isTyping={isTyping}
-            inputRef={inputRef}
-            setInputText={setInputText}
-            handleSend={handleSendEnsured}
-            handleKeyPress={handleKeyPress}
-            handleInputResize={handleInputResize}
-            handleFileUpload={handleFileUpload}
+            userId={userId}
+            accessToken={accessToken}
+            setToast={setToast}
           />
         )}
+
 
         {/* Toast */}
         {toast && (

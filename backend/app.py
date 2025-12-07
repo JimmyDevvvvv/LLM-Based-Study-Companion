@@ -20,6 +20,7 @@ from prompts import (
 )
 from typing import Optional
 from dotenv import load_dotenv
+from orchestrator import orchestrator
 
 # Load environment variables
 load_dotenv()
@@ -603,7 +604,7 @@ def clear_memory(user_id):
 def get_tone(user_id):
     """Get tone"""
     try:
-        memory = memory_manager.load_memory(user_id)
+        memory = memory_manager.load_memory(user_id) if memory_manager else {}
         return jsonify({"user_id": user_id, "tone": memory.get("preferred_tone", "professional")})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -757,6 +758,55 @@ def health_check():
         "database": "connected" if db else "disabled",
         "auth": "configured" if auth_manager else "disabled"
     })
+
+
+# ==================== ORCHESTRATION ====================
+
+@app.route("/study/assist", methods=["POST"])
+@optional_auth
+def study_assist():
+    """Unified orchestration endpoint for natural language queries"""
+    data = request.json or {}
+    query = data.get("query", "").strip()
+    context = data.get("context", {})
+    explicit_intent = data.get("explicit_intent")
+    user_id = request.user['user_id']
+    
+    if not query:
+        return jsonify({
+            "success": False,
+            "error": "No query provided",
+            "message": "Please provide a query"
+        }), 400
+    
+    try:
+        result = orchestrator.orchestrate(
+            query=query,
+            user_id=user_id,
+            context=context,
+            explicit_intent=explicit_intent
+        )
+        
+        status_code = 200 if result.get("success") else 400
+        return jsonify(result), status_code
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": "internal_error",
+            "message": str(e)
+        }), 500
+
+
+@app.route("/orchestration/stats", methods=["GET"])
+@optional_auth
+def orchestration_stats():
+    """Get orchestration statistics"""
+    try:
+        stats = orchestrator.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
