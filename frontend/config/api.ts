@@ -262,8 +262,8 @@ export const apiUtils = {
    * Generic GET request helper with optional auth
    */
   async get<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
-    const headers: HeadersInit = this.getAuthHeaders(accessToken);
-    delete (headers as any)['Content-Type'];
+    const headers = this.getAuthHeaders(accessToken) as Record<string, string>;
+    delete headers['Content-Type'];
 
     // Include guest_user_id as header if user is a guest
     const token = accessToken ?? this.getSavedAccessToken();
@@ -315,8 +315,8 @@ export const apiUtils = {
    * Generic DELETE request helper with optional auth
    */
   async delete<T = any>(endpoint: string, accessToken?: string | null): Promise<T> {
-    const headers: HeadersInit = this.getAuthHeaders(accessToken);
-    delete (headers as any)['Content-Type'];
+    const headers = this.getAuthHeaders(accessToken) as Record<string, string>;
+    delete headers['Content-Type'];
 
     // Include guest_user_id as header if user is a guest
     const token = accessToken ?? this.getSavedAccessToken();
