@@ -212,7 +212,7 @@ export default function StudyMind() {
             loadConversation={loadConversation}
             updateConversation={updateConversation}
             generateTitle={generateTitle}
-            isGuest={isGuest}
+            isGuest={isGuest()}
           />
         )}
 
