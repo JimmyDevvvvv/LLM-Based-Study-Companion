@@ -554,6 +554,7 @@ class Orchestrator:
                 return {
                     "success": False,
                     "error": "ambiguous_query",
+                    "message": "I'm not quite sure what you'd like me to do. Could you clarify?",
                     "intent": intent,
                     "confidence": confidence,
                     "needs_clarification": True,

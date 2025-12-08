@@ -114,7 +114,20 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
         setMessages(prev => [...prev, assistantMessage]);
       } else {
         // Handle error response from backend
-        const errorMsg = response.message || response.error || "Something went wrong. Please try again.";
+        let errorMsg = response.message || "Something went wrong. Please try again.";
+        
+        // Convert error codes to user-friendly messages
+        if (response.error === "ambiguous_query") {
+          errorMsg = "I'm not quite sure what you'd like me to do. Could you be more specific?";
+        } else if (response.error === "quota_exceeded") {
+          errorMsg = "Daily AI request limit reached — please try again tomorrow.";
+        } else if (response.error === "model_not_found") {
+          errorMsg = "AI model configuration error. Please contact support.";
+        } else if (response.error && !response.message) {
+          // If we have an error code but no message, provide a generic one
+          errorMsg = "Something went wrong. Please try again.";
+        }
+        
         const assistantMessage: Message = {
           id: Date.now() + 1,
           role: "assistant",
