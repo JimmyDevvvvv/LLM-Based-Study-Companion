@@ -364,7 +364,7 @@ class Orchestrator:
             if explicit_intent in AVAILABLE_TOOLS:
                 return (explicit_intent, 1.0, {})
             else:
-                return ("chat", 0.5, {})
+                return ("chat", 0.8, {})
         
         # Try keyword classification first (fast path)
         keyword_result = keyword_classify(query)
@@ -392,7 +392,7 @@ class Orchestrator:
             elif "explain" in query_lower or "what is" in query_lower:
                 return ("explanation", 0.75, extract_parameters_from_query(query, "explanation"))
             # Default fallback
-            return ("chat", 0.5, {})
+            return ("chat", 0.8, {})
     
     def route_to_tool(self, intent: str, parameters: Dict, query: str, 
                      user_id: str, context: Optional[Dict] = None) -> Dict:
@@ -559,39 +559,41 @@ class Orchestrator:
             intent, confidence, parameters = self.classify_intent(query, explicit_intent)
             
             # Check if clarification is needed
-            if confidence < 0.7 and not explicit_intent:
-                # Generate clarification options
-                clarification_options = []
-                for intent_name, tool_info in AVAILABLE_TOOLS.items():
-                    if intent_name != "chat":
-                        clarification_options.append({
-                            "intent": intent_name,
-                            "name": tool_info["name"],
-                            "description": tool_info["description"]
-                        })
-                
-                execution_time = time.time() - start_time
-                
-                # Update stats
-                self.stats["total_requests"] += 1
-                self.stats["errors"] += 1
-                
-                log_request(query, intent, confidence, "none", execution_time, False,
-                          "Low confidence - clarification needed", user_id)
-                
-                return {
-                    "success": False,
-                    "error": "ambiguous_query",
-                    "message": "I'm not quite sure what you'd like me to do. Could you clarify?",
-                    "intent": intent,
-                    "confidence": confidence,
-                    "needs_clarification": True,
-                    "clarification_options": clarification_options[:5],  # Top 5 most relevant
-                    "metadata": {
-                        "processing_time": round(execution_time, 2),
-                        "parameters_extracted": parameters
-                    }
-                }
+            # COMMENTED OUT: Allow all queries to be processed, even with low confidence
+            # This prevents "I'm not quite sure" messages and allows chat fallback when API quota is exceeded
+            # if confidence < 0.7 and not explicit_intent:
+            #     # Generate clarification options
+            #     clarification_options = []
+            #     for intent_name, tool_info in AVAILABLE_TOOLS.items():
+            #         if intent_name != "chat":
+            #             clarification_options.append({
+            #                 "intent": intent_name,
+            #                 "name": tool_info["name"],
+            #                 "description": tool_info["description"]
+            #             })
+            #     
+            #     execution_time = time.time() - start_time
+            #     
+            #     # Update stats
+            #     self.stats["total_requests"] += 1
+            #     self.stats["errors"] += 1
+            #     
+            #     log_request(query, intent, confidence, "none", execution_time, False,
+            #               "Low confidence - clarification needed", user_id)
+            #     
+            #     return {
+            #         "success": False,
+            #         "error": "ambiguous_query",
+            #         "message": "I'm not quite sure what you'd like me to do. Could you clarify?",
+            #         "intent": intent,
+            #         "confidence": confidence,
+            #         "needs_clarification": True,
+            #         "clarification_options": clarification_options[:5],  # Top 5 most relevant
+            #         "metadata": {
+            #             "processing_time": round(execution_time, 2),
+            #             "parameters_extracted": parameters
+            #         }
+            #     }
             
             # Route to tool
             tool_info = AVAILABLE_TOOLS.get(intent, AVAILABLE_TOOLS["chat"])
