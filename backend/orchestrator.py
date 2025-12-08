@@ -134,8 +134,14 @@ def keyword_classify(query: str) -> Optional[Tuple[str, float]]:
         score = 0
         keywords = tool_info.get("keywords", [])
         for keyword in keywords:
+            # Simple substring match (case-insensitive already handled by query_lower)
             if keyword in query_lower:
-                score += 1
+                # Boost score for whole word matches
+                keyword_with_spaces = f" {keyword} "
+                if keyword_with_spaces in f" {query_lower} " or query_lower == keyword or query_lower.startswith(keyword + " ") or query_lower.endswith(" " + keyword):
+                    score += 3  # Strong match
+                else:
+                    score += 1  # Partial match
         
         if score > 0:
             scores[intent] = score
@@ -147,9 +153,14 @@ def keyword_classify(query: str) -> Optional[Tuple[str, float]]:
     best_intent = max(scores.items(), key=lambda x: x[1])
     intent_name, score = best_intent
     
-    # Confidence based on score (normalized to 0-1)
-    max_possible_score = len(AVAILABLE_TOOLS[intent_name]["keywords"])
-    confidence = min(0.95, 0.6 + (score / max(max_possible_score, 1)) * 0.35)
+    # Confidence based on score
+    # Higher confidence for clear keyword matches
+    if score >= 3:
+        confidence = 0.85  # Strong keyword match
+    elif score >= 2:
+        confidence = 0.75  # Good match
+    else:
+        confidence = 0.65  # Weak but valid match
     
     # Only return if confidence is reasonable
     if confidence >= 0.6:
@@ -359,12 +370,29 @@ class Orchestrator:
         keyword_result = keyword_classify(query)
         if keyword_result:
             intent, confidence = keyword_result
+            print(f"✅ Keyword classification matched: {intent} (confidence: {confidence:.2f})")
             # Extract basic parameters
             params = extract_parameters_from_query(query, intent)
             return (intent, confidence, params)
         
         # Fall back to LLM classification
-        return llm_classify_intent(query)
+        print(f"⚠️ Keyword classification failed, trying LLM classification...")
+        try:
+            intent, confidence, params = llm_classify_intent(query)
+            print(f"✅ LLM classification result: {intent} (confidence: {confidence:.2f})")
+            return (intent, confidence, params)
+        except Exception as e:
+            print(f"❌ LLM classification failed: {str(e)}")
+            # If LLM fails, try to extract intent from query anyway
+            query_lower = query.lower()
+            if "quiz" in query_lower or "question" in query_lower:
+                return ("quiz_generation", 0.75, extract_parameters_from_query(query, "quiz_generation"))
+            elif "flashcard" in query_lower:
+                return ("flashcards", 0.75, extract_parameters_from_query(query, "flashcards"))
+            elif "explain" in query_lower or "what is" in query_lower:
+                return ("explanation", 0.75, extract_parameters_from_query(query, "explanation"))
+            # Default fallback
+            return ("chat", 0.5, {})
     
     def route_to_tool(self, intent: str, parameters: Dict, query: str, 
                      user_id: str, context: Optional[Dict] = None) -> Dict:
