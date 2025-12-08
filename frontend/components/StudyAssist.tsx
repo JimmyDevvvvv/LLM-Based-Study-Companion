@@ -4,12 +4,19 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Send, Loader2, AlertCircle, Sparkles, User, Bot } from "lucide-react";
 import { API_ENDPOINTS, apiUtils } from "@/config/api";
 import { themeClasses } from "@/utils/themeStyles";
+import { Message as ConversationMessage } from "@/types";
 
 interface StudyAssistProps {
   isDark: boolean;
   userId: string;
   accessToken?: string | null;
   setToast: (message: string) => void;
+  currentConversationId: string | null;
+  createConversation: (title?: string) => Promise<string | null>;
+  loadConversation: (conversationId: string) => Promise<ConversationMessage[] | null>;
+  updateConversation: (conversationId: string, messages: ConversationMessage[], title?: string) => Promise<boolean>;
+  generateTitle: (messages: ConversationMessage[]) => string;
+  isGuest?: boolean;
 }
 
 interface Message {
@@ -21,20 +28,33 @@ interface Message {
   isError?: boolean;
 }
 
-export default function StudyAssist({ isDark, userId, accessToken, setToast }: StudyAssistProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      role: "assistant",
-      content: "Hello! I'm StudyMind AI, your intelligent study companion. ✨\n\nI can help you with:\n• Creating quizzes and flashcards\n• Generating study guides and summaries\n• Explaining concepts\n• Project ideas and more\n\nJust ask me anything in natural language!\n\n💡 **How it works:** I automatically understand what you need and route your request to the right tool. For example, say \"Create a quiz on Python\" and I'll use the Quiz Generator for you!"
-    }
-  ]);
+const WELCOME_MESSAGE: Message = {
+  id: 1,
+  role: "assistant",
+  content: "Hello! I'm StudyMind AI, your intelligent study companion. ✨\n\nI can help you with:\n• Creating quizzes and flashcards\n• Generating study guides and summaries\n• Explaining concepts\n• Project ideas and more\n\nJust ask me anything in natural language!\n\n💡 **How it works:** I automatically understand what you need and route your request to the right tool. For example, say \"Create a quiz on Python\" and I'll use the Quiz Generator for you!"
+};
+
+export default function StudyAssist({ 
+  isDark, 
+  userId, 
+  accessToken, 
+  setToast,
+  currentConversationId,
+  createConversation,
+  loadConversation,
+  updateConversation,
+  generateTitle,
+  isGuest = false
+}: StudyAssistProps) {
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [stage, setStage] = useState<string>("");
+  const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const theme = useMemo(() => themeClasses(isDark), [isDark]);
+  const hasLoadedConversationRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -44,9 +64,71 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
     scrollToBottom();
   }, [messages, loading]);
 
+  // Load messages when conversation changes
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!currentConversationId) {
+        // No conversation selected - show welcome message
+        setMessages([WELCOME_MESSAGE]);
+        hasLoadedConversationRef.current = null;
+        return;
+      }
+
+      // Reset loaded state when conversation changes
+      if (hasLoadedConversationRef.current !== currentConversationId) {
+        hasLoadedConversationRef.current = null;
+      }
+
+      // Don't reload if we've already loaded this conversation
+      if (hasLoadedConversationRef.current === currentConversationId) {
+        return;
+      }
+
+      setLoadingMessages(true);
+      try {
+        const loadedMessages = await loadConversation(currentConversationId);
+        
+        if (loadedMessages && loadedMessages.length > 0) {
+          // Convert ConversationMessage[] to Message[]
+          const convertedMessages: Message[] = loadedMessages.map((msg, idx) => ({
+            id: typeof msg.id === 'number' ? msg.id : (idx + 1),
+            role: msg.type === "user" ? "user" : "assistant",
+            content: msg.content || "",
+            isError: msg.isError || false
+          }));
+          setMessages(convertedMessages);
+        } else {
+          // Empty conversation - show welcome message
+          setMessages([WELCOME_MESSAGE]);
+        }
+        hasLoadedConversationRef.current = currentConversationId;
+      } catch (err) {
+        console.error("Error loading conversation:", err);
+        setMessages([WELCOME_MESSAGE]);
+        hasLoadedConversationRef.current = null;
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+    loadMessages();
+  }, [currentConversationId, loadConversation]);
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || loading) return;
+
+    // For guests, don't create conversations - just use null
+    // For authenticated users, ensure we have a conversation
+    let conversationId = currentConversationId;
+    if (!conversationId && !isGuest) {
+      // Create a new conversation if none exists (only for authenticated users)
+      conversationId = await createConversation("New Conversation");
+      if (!conversationId) {
+        setToast("Failed to create conversation. Please try again.");
+        return;
+      }
+    }
 
     const userMessage: Message = {
       id: Date.now(),
@@ -54,7 +136,8 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
       content: input.trim()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput("");
     setLoading(true);
     setStage("Analyzing your request...");
@@ -98,7 +181,29 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
           confidence: confidence
         };
 
-        setMessages(prev => [...prev, assistantMessage]);
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+
+        // Save messages to conversation (only for authenticated users)
+        if (conversationId && !isGuest) {
+          const conversationMessages: ConversationMessage[] = finalMessages
+            .filter(msg => msg.id !== WELCOME_MESSAGE.id) // Exclude welcome message
+            .map((msg, idx) => ({
+              id: msg.id,
+              type: msg.role === "user" ? "user" : "assistant",
+              content: msg.content,
+              timestamp: new Date(),
+              isError: msg.isError
+            }));
+
+          // Generate title from first user message if this is a new conversation
+          let title: string | undefined;
+          if (finalMessages.filter(m => m.role === "user").length === 1) {
+            title = generateTitle(conversationMessages.filter(m => m.type === "user"));
+          }
+
+          await updateConversation(conversationId, conversationMessages, title);
+        }
       } else if (response.needs_clarification) {
         const options = response.clarification_options || [];
         const optionsText = options.map((opt: any, idx: number) => 
@@ -111,7 +216,23 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
           content: `I can help with that! Which would you like?\n\n${optionsText}\n\nJust tell me the number or describe what you want.`
         };
 
-        setMessages(prev => [...prev, assistantMessage]);
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+
+        // Save messages to conversation (only for authenticated users)
+        if (conversationId && !isGuest) {
+          const conversationMessages: ConversationMessage[] = finalMessages
+            .filter(msg => msg.id !== WELCOME_MESSAGE.id)
+            .map((msg, idx) => ({
+              id: msg.id,
+              type: msg.role === "user" ? "user" : "assistant",
+              content: msg.content,
+              timestamp: new Date(),
+              isError: msg.isError
+            }));
+
+          await updateConversation(conversationId, conversationMessages);
+        }
       } else {
         // Handle error response from backend
         let errorMsg = response.message || "Something went wrong. Please try again.";
@@ -135,7 +256,23 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
           isError: true
         };
 
-        setMessages(prev => [...prev, assistantMessage]);
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+
+        // Save messages to conversation (even on error, only for authenticated users)
+        if (conversationId && !isGuest) {
+          const conversationMessages: ConversationMessage[] = finalMessages
+            .filter(msg => msg.id !== WELCOME_MESSAGE.id)
+            .map((msg, idx) => ({
+              id: msg.id,
+              type: msg.role === "user" ? "user" : "assistant",
+              content: msg.content,
+              timestamp: new Date(),
+              isError: msg.isError
+            }));
+
+          await updateConversation(conversationId, conversationMessages);
+        }
         
         // Show toast for errors
         if (setToast) {
@@ -179,7 +316,23 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
         isError: true
       };
 
-      setMessages(prev => [...prev, errorMsgObj]);
+      const finalMessages = [...updatedMessages, errorMsgObj];
+      setMessages(finalMessages);
+
+      // Save messages to conversation (even on error, only for authenticated users)
+      if (conversationId && !isGuest) {
+        const conversationMessages: ConversationMessage[] = finalMessages
+          .filter(msg => msg.id !== WELCOME_MESSAGE.id)
+          .map((msg, idx) => ({
+            id: msg.id,
+            type: msg.role === "user" ? "user" : "assistant",
+            content: msg.content,
+            timestamp: new Date(),
+            isError: msg.isError
+          }));
+
+        await updateConversation(conversationId, conversationMessages);
+      }
       
       // Show toast for errors
       if (showToast && setToast) {
@@ -259,6 +412,27 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
               )}
             </div>
           ))}
+
+          {/* Loading Messages Indicator */}
+          {loadingMessages && (
+            <div className="flex gap-4 justify-start">
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                isDark ? "bg-slate-800" : "bg-slate-100"
+              }`}>
+                <Bot className={`w-5 h-5 ${isDark ? "text-slate-300" : "text-slate-600"}`} />
+              </div>
+              <div className={`rounded-2xl px-4 py-3 ${
+                isDark ? "bg-slate-800" : "bg-slate-100"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                  <span className={`text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                    Loading conversation...
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Loading Indicator */}
           {loading && (

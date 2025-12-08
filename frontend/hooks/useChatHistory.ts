@@ -145,10 +145,11 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
       const data = await apiUtils.post<{ conversation: any }>(API_ENDPOINTS.conversations(userId), { title }, accessToken);
       const newConversation = data.conversation;
       
+      const newConvId = String(newConversation.id);
       setConversations(prev => {
         const merged = [
           {
-            id: String(newConversation.id),
+            id: newConvId,
             title: newConversation.title || "New Conversation",
             lastMessage: newConversation.lastMessage || "",
             timestamp: newConversation.timestamp || new Date().toISOString(),
@@ -158,9 +159,9 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
         ];
         return dedupeById(merged);
       });
-      setCurrentConversationId(newConversation.id);
+      setCurrentConversationId(newConvId);
       
-      return newConversation.id;
+      return newConvId;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create conversation");
       console.error("Error creating conversation:", err);
@@ -231,14 +232,16 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
               ? ({
                   ...conv,
                   title: title || conv.title,
-                  lastMessage: messages[messages.length - 1]?.content || conv.lastMessage || "",
+                  lastMessage: messages[messages.length - 1]?.content?.substring(0, 100) || conv.lastMessage || "",
                   timestamp: new Date().toISOString(),
                   messages: messagesData
                 } as Conversation)
               : conv
           );
-          saveGuestConversations(updated);
-          return updated;
+          // Sort by timestamp (newest first)
+          const sorted = updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          saveGuestConversations(sorted);
+          return sorted;
         });
         
         return true;
@@ -267,19 +270,21 @@ export function useChatHistory(userId: string, accessToken?: string | null) {
       const updatedConversation = data.conversation;
       
       // Update the conversation in the list
-      setConversations(prev =>
-        prev.map(conv =>
+      setConversations(prev => {
+        const updated = prev.map(conv =>
           conv.id === conversationId
             ? {
                 id: String(updatedConversation.id),
                 title: updatedConversation.title || conv.title,
-                lastMessage: updatedConversation.lastMessage || conv.lastMessage || "",
-                timestamp: updatedConversation.timestamp || conv.timestamp,
-                messages: updatedConversation.messages || conv.messages
+                lastMessage: updatedConversation.lastMessage || messages[messages.length - 1]?.content?.substring(0, 100) || conv.lastMessage || "",
+                timestamp: updatedConversation.timestamp || new Date().toISOString(),
+                messages: updatedConversation.messages || messagesData
               }
             : conv
-        )
-      );
+        );
+        // Sort by timestamp (newest first)
+        return updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      });
       
       return true;
     } catch (err) {

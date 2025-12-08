@@ -96,6 +96,8 @@ export default function StudyMind() {
     // Don't reload if we're already on this conversation
     if (conversationId === currentConversationId) return;
     setCurrentConversationId(conversationId);
+    // Load the conversation messages
+    await loadConversation(conversationId);
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
@@ -205,6 +207,12 @@ export default function StudyMind() {
             userId={userId}
             accessToken={accessToken}
             setToast={setToast}
+            currentConversationId={currentConversationId}
+            createConversation={createConversation}
+            loadConversation={loadConversation}
+            updateConversation={updateConversation}
+            generateTitle={generateTitle}
+            isGuest={isGuest}
           />
         )}
 
