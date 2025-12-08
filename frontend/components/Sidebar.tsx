@@ -43,16 +43,18 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-all duration-300"
-          onClick={toggleSidebar}
-        />
-      )}
+      {/* Overlay for mobile sidebar with smooth fade */}
+      <div 
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ease-in-out ${
+          sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={toggleSidebar}
+      />
 
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative z-50 w-72 h-full ${isDark ? 'bg-slate-950/90' : 'bg-slate-900/95'} backdrop-blur-3xl text-white flex flex-col transition-all duration-500 ease-in-out transform border-r ${isDark ? 'border-slate-800/60' : 'border-slate-700/50'} shadow-[0_40px_160px_-90px_rgba(99,102,241,0.65)]`}>
+      {/* Sidebar with smooth slide animation */}
+      <div className={`fixed md:relative z-50 w-72 h-full ${isDark ? 'bg-slate-950/90' : 'bg-slate-900/95'} backdrop-blur-3xl text-white flex flex-col border-r ${isDark ? 'border-slate-800/60' : 'border-slate-700/50'} shadow-[0_40px_160px_-90px_rgba(99,102,241,0.65)] transition-transform duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
         
         {/* Sidebar Header */}
         <div className={`p-4 border-b ${isDark ? 'border-slate-800/70' : 'border-slate-700/60'} backdrop-blur-sm`}>
@@ -80,11 +82,11 @@ export default function Sidebar({
           <div className="p-4">
             <button
               onClick={startNewConversation}
-              className="relative w-full group overflow-hidden"
+              className="relative w-full group overflow-hidden active:scale-[0.98] transition-transform duration-150"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-all duration-500 blur-sm"></div>
-              <div className="relative flex items-center justify-center space-x-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform group-hover:scale-105 shadow-lg shadow-purple-500/30 group-hover:shadow-purple-500/50">
-                <Plus className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
+              <div className="relative flex items-center justify-center space-x-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 transform group-hover:scale-[1.02] shadow-lg shadow-purple-500/30 group-hover:shadow-purple-500/50 group-hover:shadow-xl">
+                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
                 <span className="font-bold">New Conversation</span>
               </div>
             </button>
@@ -109,15 +111,17 @@ export default function Sidebar({
                     className="relative group"
                     onMouseEnter={() => setHoveredConv(conv.id)}
                     onMouseLeave={() => setHoveredConv(null)}
+                    style={{
+                      animation: `fadeInSlide 0.4s ease-out ${index * 50}ms both`
+                    }}
                   >
                     <button
                       onClick={() => setCurrentConversation(conv.id)}
-                      className={`relative w-full text-left p-3 rounded-xl transition-all duration-300 group animate-in fade-in slide-in-from-left-2 ${
+                      className={`relative w-full text-left p-3 rounded-xl transition-all duration-200 ease-out active:scale-[0.98] ${
                         currentConversation === conv.id
-                          ? 'bg-slate-900/70 border border-indigo-500/40 shadow-lg'
-                          : 'border border-transparent hover:bg-slate-900/40 hover:border-indigo-400/30'
-                      } hover:scale-[1.02] hover:shadow-lg`}
-                      style={{ animationDelay: `${index * 100}ms` }}
+                          ? 'bg-slate-900/70 border border-indigo-500/40 shadow-lg shadow-indigo-500/20'
+                          : 'border border-transparent hover:bg-slate-900/50 hover:border-indigo-400/30'
+                      } hover:scale-[1.01] hover:shadow-md`}
                     >
                       <div className="flex items-start space-x-3">
                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center transition-all duration-300 ${
@@ -140,14 +144,16 @@ export default function Sidebar({
                       </div>
                     </button>
                     
-                    {/* Delete Button */}
-                    {deleteConversation && hoveredConv === conv.id && (
+                    {/* Delete Button with smooth fade-in */}
+                    {deleteConversation && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteConversation(conv.id);
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 transition-all duration-200 opacity-0 group-hover:opacity-100 z-10"
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300 hover:text-red-200 transition-all duration-200 z-10 active:scale-90 ${
+                          hoveredConv === conv.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'
+                        }`}
                         title="Delete conversation"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -191,10 +197,10 @@ export default function Sidebar({
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="p-2 hover:bg-slate-900/70 rounded-lg transition-colors group"
+                  className="p-2 hover:bg-slate-900/70 rounded-lg transition-all duration-200 group hover:scale-110 active:scale-95"
                   title="Sign out"
                 >
-                  <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-400 transition-colors" />
+                  <LogOut className="w-4 h-4 text-gray-400 group-hover:text-red-400 transition-colors duration-200" />
                 </button>
               </div>
               

@@ -365,29 +365,32 @@ export default function StudyAssist({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <div
               key={message.id}
               className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              style={{
+                animation: `messageSlideIn 0.4s ease-out ${index * 50}ms both`
+              }}
             >
               {message.role === "assistant" && (
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                  isDark ? "bg-slate-800" : "bg-slate-100"
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                  isDark ? "bg-slate-800 shadow-lg" : "bg-slate-100 shadow-md"
                 }`}>
                   <Bot className={`w-5 h-5 ${isDark ? "text-slate-300" : "text-slate-600"}`} />
                 </div>
               )}
 
               <div className={`flex flex-col gap-2 max-w-[85%] ${message.role === "user" ? "items-end" : "items-start"}`}>
-                <div className={`rounded-2xl px-4 py-3 ${
+                <div className={`rounded-2xl px-4 py-3 transition-all duration-200 hover:shadow-lg ${
                   message.role === "user"
                     ? isDark
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-500 text-white"
+                      ? "bg-indigo-600 text-white shadow-indigo-500/20"
+                      : "bg-indigo-500 text-white shadow-indigo-500/30"
                     : isDark
-                      ? "bg-slate-800 text-slate-100"
-                      : "bg-slate-100 text-slate-900"
-                } ${message.isError ? "border border-red-500/50" : ""}`}>
+                      ? "bg-slate-800 text-slate-100 shadow-slate-900/50"
+                      : "bg-slate-100 text-slate-900 shadow-slate-200/50"
+                } ${message.isError ? "border border-red-500/50 shadow-red-500/20" : ""}`}>
                   <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                     {message.content}
                   </div>
@@ -404,8 +407,8 @@ export default function StudyAssist({
               </div>
 
               {message.role === "user" && (
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                  isDark ? "bg-indigo-600" : "bg-indigo-500"
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg ${
+                  isDark ? "bg-indigo-600 shadow-indigo-500/30" : "bg-indigo-500 shadow-indigo-500/40"
                 }`}>
                   <User className="w-5 h-5 text-white" />
                 </div>
@@ -413,9 +416,9 @@ export default function StudyAssist({
             </div>
           ))}
 
-          {/* Loading Messages Indicator */}
+          {/* Loading Messages Indicator with skeleton */}
           {loadingMessages && (
-            <div className="flex gap-4 justify-start">
+            <div className="flex gap-4 justify-start animate-message-in">
               <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                 isDark ? "bg-slate-800" : "bg-slate-100"
               }`}>
@@ -434,19 +437,23 @@ export default function StudyAssist({
             </div>
           )}
 
-          {/* Loading Indicator */}
+          {/* Loading Indicator with typing animation */}
           {loading && (
-            <div className="flex gap-4 justify-start">
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className="flex gap-4 justify-start animate-message-in">
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
                 isDark ? "bg-slate-800" : "bg-slate-100"
               }`}>
                 <Bot className={`w-5 h-5 ${isDark ? "text-slate-300" : "text-slate-600"}`} />
               </div>
-              <div className={`rounded-2xl px-4 py-3 ${
+              <div className={`rounded-2xl px-4 py-3 shadow-lg ${
                 isDark ? "bg-slate-800" : "bg-slate-100"
               }`}>
                 <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                  <div className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full ${isDark ? "bg-slate-400" : "bg-slate-500"} animate-bounce`} style={{ animationDelay: '0ms' }}></span>
+                    <span className={`w-2 h-2 rounded-full ${isDark ? "bg-slate-400" : "bg-slate-500"} animate-bounce`} style={{ animationDelay: '150ms' }}></span>
+                    <span className={`w-2 h-2 rounded-full ${isDark ? "bg-slate-400" : "bg-slate-500"} animate-bounce`} style={{ animationDelay: '300ms' }}></span>
+                  </div>
                   <span className={`text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
                     {stage || "Thinking..."}
                   </span>
@@ -465,11 +472,11 @@ export default function StudyAssist({
       }`}>
         <div className="max-w-3xl mx-auto px-4 py-4">
           <form onSubmit={handleSubmit} className="relative">
-            <div className={`relative rounded-2xl ${
+            <div className={`relative rounded-2xl transition-all duration-200 ${
               isDark ? "bg-slate-800" : "bg-slate-100"
             } border ${
               isDark ? "border-slate-700" : "border-slate-300"
-            } shadow-lg`}>
+            } shadow-lg hover:shadow-xl focus-within:shadow-2xl focus-within:border-indigo-400/50`}>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -477,11 +484,11 @@ export default function StudyAssist({
                 onKeyDown={handleKeyDown}
                 onInput={handleInputResize}
                 placeholder="Message StudyMind AI..."
-                className={`w-full px-4 py-3 pr-12 resize-none border-0 outline-none ${
+                className={`w-full px-4 py-3 pr-12 resize-none border-0 outline-none transition-all duration-200 ${
                   isDark
-                    ? "bg-slate-800 text-slate-100 placeholder-slate-400"
-                    : "bg-slate-100 text-slate-900 placeholder-slate-500"
-                } rounded-2xl text-sm`}
+                    ? "bg-slate-800 text-slate-100 placeholder-slate-400 focus:placeholder-slate-500"
+                    : "bg-slate-100 text-slate-900 placeholder-slate-500 focus:placeholder-slate-400"
+                } rounded-2xl text-sm focus:ring-0`}
                 rows={1}
                 style={{ minHeight: "52px", maxHeight: "200px" }}
                 disabled={loading}
@@ -489,11 +496,11 @@ export default function StudyAssist({
               <button
                 type="submit"
                 disabled={!input.trim() || loading}
-                className={`absolute right-2 bottom-2 p-2 rounded-xl transition-all ${
+                className={`absolute right-2 bottom-2 p-2 rounded-xl transition-all duration-200 active:scale-90 ${
                   input.trim() && !loading
                     ? isDark
-                      ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                      : "bg-indigo-500 hover:bg-indigo-600 text-white"
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-110"
+                      : "bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-110"
                     : isDark
                       ? "bg-slate-700 text-slate-500 cursor-not-allowed"
                       : "bg-slate-200 text-slate-400 cursor-not-allowed"
@@ -502,7 +509,7 @@ export default function StudyAssist({
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                 )}
               </button>
             </div>
@@ -512,11 +519,11 @@ export default function StudyAssist({
               <Sparkles className="w-3 h-3 inline mr-1" />
               StudyMind can make mistakes. Verify important information.
             </div>
-            <div className={`mt-2 px-3 py-2 rounded-lg text-xs ${
-              isDark ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-300" : "bg-indigo-50 border border-indigo-200 text-indigo-700"
+            <div className={`mt-2 px-3 py-2 rounded-lg text-xs transition-all duration-300 animate-in fade-in ${
+              isDark ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/15" : "bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100"
             }`}>
               <div className="flex items-start gap-2">
-                <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0 animate-pulse" />
                 <div>
                   <p className="font-medium mb-1">How the orchestrator works:</p>
                   <p className="leading-relaxed">

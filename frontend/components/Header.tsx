@@ -46,9 +46,9 @@ export default function Header({
         <div className="flex items-center space-x-4">
           <button
             onClick={toggleSidebar}
-            className={`${theme.secondaryButton} !px-3 !py-2 !rounded-2xl`}
+            className={`${theme.secondaryButton} !px-3 !py-2 !rounded-2xl transition-all duration-200 hover:scale-110 active:scale-95 hover:shadow-lg`}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5 transition-transform duration-200" />
           </button>
           <div className="flex items-center space-x-3">
             <h1 className={`text-xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-sky-400 bg-clip-text text-transparent`}>
@@ -62,10 +62,10 @@ export default function Header({
           <div className="relative">
             <button
               onClick={() => setToneMenuOpen(!toneMenuOpen)}
-              className={`${theme.secondaryButton} !px-3 !py-1.5 !rounded-xl text-sm`}
+              className={`${theme.secondaryButton} !px-3 !py-1.5 !rounded-xl text-sm transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-md`}
               title="Change AI response tone"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-green-400 to-blue-500 animate-pulse"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-green-400 to-blue-500 animate-pulse shadow-lg shadow-green-400/50"></div>
               <span className="capitalize">{tone}</span>
               <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${toneMenuOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -77,14 +77,16 @@ export default function Header({
                     <button
                       key={t}
                       onClick={() => changeTone(t)}
-                      className={`w-full text-left px-3 py-1.5 rounded-md transition-all duration-300 ${
-                        isDark ? 'text-slate-200 hover:bg-slate-900/60' : 'text-slate-700 hover:bg-slate-100/80'
-                      } ${t === tone ? (isDark ? 'bg-slate-900/70' : 'bg-slate-100/70') : ''}`}
-                      style={{ animationDelay: `${index * 50}ms` }}
+                      className={`w-full text-left px-3 py-1.5 rounded-md transition-all duration-200 active:scale-95 ${
+                        isDark ? 'text-slate-200 hover:bg-slate-900/60 hover:scale-[1.02]' : 'text-slate-700 hover:bg-slate-100/80 hover:scale-[1.02]'
+                      } ${t === tone ? (isDark ? 'bg-slate-900/70 shadow-lg' : 'bg-slate-100/70 shadow-lg') : ''}`}
+                      style={{ 
+                        animation: `fadeInSlide 0.3s ease-out ${index * 30}ms both`
+                      }}
                     >
                       <div className="flex items-center justify-between">
                         <span className="capitalize">{t}</span>
-                        {t === tone && <Check className="w-3 h-3 text-green-500" />}
+                        {t === tone && <Check className="w-3 h-3 text-green-500 animate-in" />}
                       </div>
                     </button>
                   ))}
@@ -97,17 +99,20 @@ export default function Header({
           {toggleTheme && (
             <button
               onClick={toggleTheme}
-              className={`${theme.secondaryButton} !px-3 !py-2 !rounded-xl`}
+              className={`${theme.secondaryButton} !px-3 !py-2 !rounded-xl transition-all duration-200 hover:scale-110 active:scale-95 hover:shadow-lg hover:rotate-12`}
               title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {isDark ? <Sun className="w-4 h-4 transition-transform duration-300" /> : <Moon className="w-4 h-4 transition-transform duration-300" />}
             </button>
           )}
 
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2 text-sm text-slate-500">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_1.8s_infinite] shadow-green-500/40"></div>
-              <span className="hidden sm:inline">AI Online</span>
+              <div className="relative">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-[pulse_1.8s_infinite] shadow-lg shadow-green-500/50"></div>
+                <div className="absolute inset-0 w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
+              </div>
+              <span className="hidden sm:inline transition-colors duration-200">AI Online</span>
             </div>
           </div>
         </div>

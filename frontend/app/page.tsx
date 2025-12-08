@@ -237,7 +237,7 @@ export default function StudyMind() {
         isDark={isDark}
       />
       
-      <style jsx>{`
+      <style jsx global>{`
         @keyframes animate-in {
           from {
             opacity: 0;
@@ -249,8 +249,63 @@ export default function StudyMind() {
           }
         }
         
+        @keyframes fadeInSlide {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes messageSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes shimmer {
+          0% {
+            background-position: -1000px 0;
+          }
+          100% {
+            background-position: 1000px 0;
+          }
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+        }
+        
+        @keyframes pulse-glow {
+          0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+          }
+          50% {
+            opacity: 0.8;
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+          }
+        }
+        
         .animate-in {
           animation: animate-in 0.5s ease-out forwards;
+        }
+        
+        .animate-message-in {
+          animation: messageSlideIn 0.4s ease-out both;
         }
         
         .fade-in {
@@ -267,6 +322,40 @@ export default function StudyMind() {
         
         .slide-in-from-left-2 {
           animation-name: animate-in;
+        }
+        
+        .shimmer {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.1) 50%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          background-size: 1000px 100%;
+          animation: shimmer 2s infinite;
+        }
+        
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        
+        /* Smooth scrollbar */
+        ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+          background: rgba(99, 102, 241, 0.3);
+          border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(99, 102, 241, 0.5);
         }
       `}</style>
     </div>
