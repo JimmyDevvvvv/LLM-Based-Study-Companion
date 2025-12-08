@@ -211,7 +211,18 @@ Important:
 - Return null for parameters not found"""
 
     try:
-        model = genai.GenerativeModel(model_name)
+        # Safety settings for educational content - less strict filters
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+        
+        model = genai.GenerativeModel(
+            model_name,
+            safety_settings=safety_settings
+        )
         response = model.generate_content(
             classification_prompt,
             generation_config={
@@ -219,6 +230,13 @@ Important:
                 "max_output_tokens": 512,
             }
         )
+        
+        # Check for safety filter blocks
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'finish_reason') and candidate.finish_reason == 2:  # SAFETY
+                print("Warning: Response blocked by safety filter, falling back to chat")
+                return ("chat", 0.5, {})
         
         output = response.text.strip()
         

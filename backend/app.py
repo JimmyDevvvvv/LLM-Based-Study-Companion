@@ -124,6 +124,13 @@ def _gemini_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 20
         
         response = model.generate_content(prompt)
         
+        # Check for safety filter blocks before accessing response.text
+        if response.candidates and len(response.candidates) > 0:
+            candidate = response.candidates[0]
+            if hasattr(candidate, 'finish_reason') and candidate.finish_reason == 2:  # SAFETY
+                print("Warning: Response blocked by safety filter")
+                return "I apologize, but the response was blocked by content filters. Please try rephrasing your request."
+        
         if response.text:
             return response.text.strip()
         else:
@@ -132,6 +139,10 @@ def _gemini_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 20
     except Exception as e:
         error_str = str(e)
         print(f"Gemini API Error: {error_str}")
+        
+        # Handle safety filter error (finish_reason 2)
+        if "finish_reason" in error_str.lower() or "requires the response to contain a valid" in error_str:
+            return "I apologize, but the response was blocked by content filters. Please try rephrasing your request."
         
         # Check if it's a quota error and provide user-friendly message
         if "quota" in error_str.lower() or "429" in error_str:
