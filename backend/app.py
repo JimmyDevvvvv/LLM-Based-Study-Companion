@@ -152,6 +152,14 @@ def _gemini_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 20
                 "Error details: API rate limit exceeded."
             )
         
+        # Check if model not found
+        if "not found" in error_str.lower() or "not supported" in error_str.lower() or "404" in error_str:
+            raise Exception(
+                f"AI model '{MODEL_NAME}' not found or not supported. "
+                "Please check your GEMINI_MODEL environment variable. "
+                f"Error: {error_str[:200]}"
+            )
+        
         raise Exception(f"Failed to generate content: {error_str}")
 
 
@@ -814,13 +822,34 @@ def study_assist():
         
     except Exception as e:
         error_str = str(e)
-        error_type = "quota_exceeded" if "quota" in error_str.lower() else "internal_error"
+        error_lower = error_str.lower()
+        
+        # Determine error type and status code
+        if "quota" in error_lower or "429" in error_lower:
+            error_type = "quota_exceeded"
+            status_code = 429
+            user_message = "Daily AI request limit reached — please try again tomorrow."
+        elif "not found" in error_lower or "not supported" in error_lower or "404" in error_str:
+            error_type = "model_not_found"
+            status_code = 500
+            user_message = "AI model configuration error. Please contact support."
+        elif "safety" in error_lower or "blocked" in error_lower:
+            error_type = "content_filtered"
+            status_code = 400
+            user_message = "Content was blocked by safety filters. Please try rephrasing your request."
+        else:
+            error_type = "internal_error"
+            status_code = 500
+            user_message = "Something went wrong. Please try again."
+        
+        print(f"Error in study_assist: {error_type} - {error_str}")
         
         return jsonify({
             "success": False,
             "error": error_type,
-            "message": error_str
-        }), 500
+            "message": user_message,
+            "details": error_str[:200] if error_str != user_message else None
+        }), status_code
 
 
 @app.route("/orchestration/stats", methods=["GET"])

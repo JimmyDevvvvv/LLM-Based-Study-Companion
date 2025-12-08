@@ -113,24 +113,65 @@ export default function StudyAssist({ isDark, userId, accessToken, setToast }: S
 
         setMessages(prev => [...prev, assistantMessage]);
       } else {
+        // Handle error response from backend
+        const errorMsg = response.message || response.error || "Something went wrong. Please try again.";
         const assistantMessage: Message = {
           id: Date.now() + 1,
           role: "assistant",
-          content: response.message || response.error || "Sorry, I encountered an error. Please try again.",
+          content: errorMsg,
           isError: true
         };
 
         setMessages(prev => [...prev, assistantMessage]);
+        
+        // Show toast for errors
+        if (setToast) {
+          setToast(errorMsg);
+        }
       }
-    } catch (err) {
-      const errorMessage: Message = {
+    } catch (err: any) {
+      let errorMessage = "Something went wrong. Please try again.";
+      let showToast = true;
+
+      // Handle different error types
+      if (err instanceof Error) {
+        const errorStr = err.message.toLowerCase();
+        
+        // Check for quota/rate limit errors (429)
+        if (errorStr.includes("429") || errorStr.includes("quota") || errorStr.includes("quota_exceeded")) {
+          errorMessage = "Daily AI request limit reached — please try again tomorrow.";
+        }
+        // Check for model not found errors
+        else if (errorStr.includes("model") && (errorStr.includes("not found") || errorStr.includes("not supported"))) {
+          errorMessage = "AI model configuration error. Please contact support.";
+        }
+        // Check for network errors
+        else if (errorStr.includes("network") || errorStr.includes("fetch") || errorStr.includes("failed to fetch")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        }
+        // Check for backend not running
+        else if (errorStr.includes("backend") || errorStr.includes("500") || errorStr.includes("connection refused")) {
+          errorMessage = "Backend service unavailable. Please check if the server is running.";
+        }
+        // Use original error message if it's informative
+        else if (err.message && err.message.length < 200) {
+          errorMessage = err.message;
+        }
+      }
+
+      const errorMsgObj: Message = {
         id: Date.now() + 1,
         role: "assistant",
-        content: err instanceof Error ? err.message : "Failed to process request. Please check if the backend is running.",
+        content: errorMessage,
         isError: true
       };
 
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorMsgObj]);
+      
+      // Show toast for errors
+      if (showToast && setToast) {
+        setToast(errorMessage);
+      }
     } finally {
       setLoading(false);
       setStage("");

@@ -113,9 +113,10 @@ Respond with ONLY valid JSON, no explanation or additional text:"""
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
-            # Use Gemini API for extraction
+            # Use Gemini API for extraction - get model from env or use default
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
             model = genai.GenerativeModel(
-                'gemini-2.5-flash',
+                model_name,
                 safety_settings=safety_settings
             )
             response = model.generate_content(

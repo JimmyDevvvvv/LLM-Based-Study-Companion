@@ -6,6 +6,7 @@ Routes natural language queries to appropriate tools
 import json
 import re
 import time
+import os
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 import google.generativeai as genai
@@ -157,7 +158,7 @@ def keyword_classify(query: str) -> Optional[Tuple[str, float]]:
     return None
 
 
-def llm_classify_intent(query: str, model_name: str = "gemini-2.5-flash") -> Tuple[str, float, Dict]:
+def llm_classify_intent(query: str, model_name: Optional[str] = None) -> Tuple[str, float, Dict]:
     """
     Use LLM to classify user intent and extract parameters.
     Returns (intent, confidence, extracted_params)
@@ -211,6 +212,10 @@ Important:
 - Return null for parameters not found"""
 
     try:
+        # Get model name from env if not provided
+        if model_name is None:
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        
         # Safety settings for educational content - less strict filters
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -269,7 +274,16 @@ Important:
                 f"Details: {error_str[:200]}"
             )
         
+        # Check if model not found
+        if "not found" in error_str.lower() or "not supported" in error_str.lower() or "404" in error_str:
+            raise Exception(
+                f"AI model '{model_name}' not found or not supported. "
+                "Please check your GEMINI_MODEL environment variable. "
+                f"Error: {error_str[:200]}"
+            )
+        
         # For other errors, fall back to chat with low confidence
+        print(f"Warning: LLM classification failed, falling back to chat intent. Error: {error_str[:100]}")
         return ("chat", 0.5, {})
 
 

@@ -252,7 +252,36 @@ export const apiUtils = {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to parse error response for better error messages
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      let errorType = "unknown";
+      
+      try {
+        const errorData = await response.json();
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+          errorType = errorData.error;
+        }
+      } catch {
+        // If JSON parsing fails, use status-based message
+        if (response.status === 429) {
+          errorMessage = "quota_exceeded";
+          errorType = "quota_exceeded";
+        } else if (response.status === 404) {
+          errorMessage = "Model not found";
+          errorType = "model_not_found";
+        } else if (response.status === 500) {
+          errorMessage = "Internal server error";
+          errorType = "internal_error";
+        }
+      }
+      
+      const error = new Error(errorMessage);
+      (error as any).status = response.status;
+      (error as any).errorType = errorType;
+      throw error;
     }
 
     return response.json();
