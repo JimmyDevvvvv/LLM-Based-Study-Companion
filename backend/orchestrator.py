@@ -9,7 +9,7 @@ import time
 import os
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
-import google.generativeai as genai
+from llm_provider import get_llm_provider
 from functools import wraps
 
 
@@ -223,38 +223,9 @@ Important:
 - Return null for parameters not found"""
 
     try:
-        # Get model name from env if not provided
-        if model_name is None:
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        
-        # Safety settings for educational content - less strict filters
-        safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-        ]
-        
-        model = genai.GenerativeModel(
-            model_name,
-            safety_settings=safety_settings
-        )
-        response = model.generate_content(
-            classification_prompt,
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 512,
-            }
-        )
-        
-        # Check for safety filter blocks
-        if response.candidates and len(response.candidates) > 0:
-            candidate = response.candidates[0]
-            if hasattr(candidate, 'finish_reason') and candidate.finish_reason == 2:  # SAFETY
-                print("Warning: Response blocked by safety filter, falling back to chat")
-                return ("chat", 0.5, {})
-        
-        output = response.text.strip()
+        # Use unified LLM provider
+        llm = get_llm_provider()
+        output = llm.chat(classification_prompt, temperature=0.2, max_tokens=512)
         
         # Extract JSON from response
         json_match = re.search(r'\{.*\}', output, re.DOTALL)
@@ -271,31 +242,15 @@ Important:
             
             return (intent, confidence, parameters)
         else:
-            return ("chat", 0.5, {})
+            return ("chat", 0.8, {})
             
     except Exception as e:
         error_str = str(e)
         print(f"Error in LLM classification: {error_str}")
         
-        # Check if it's a quota error
-        if "quota" in error_str.lower() or "429" in error_str:
-            raise Exception(
-                "API quota exceeded. The free tier for this model has been reached. "
-                "Please try again later or contact support. "
-                f"Details: {error_str[:200]}"
-            )
-        
-        # Check if model not found
-        if "not found" in error_str.lower() or "not supported" in error_str.lower() or "404" in error_str:
-            raise Exception(
-                f"AI model '{model_name}' not found or not supported. "
-                "Please check your GEMINI_MODEL environment variable. "
-                f"Error: {error_str[:200]}"
-            )
-        
-        # For other errors, fall back to chat with low confidence
+        # For errors, fall back to chat with higher confidence (0.8 instead of 0.5)
         print(f"Warning: LLM classification failed, falling back to chat intent. Error: {error_str[:100]}")
-        return ("chat", 0.5, {})
+        return ("chat", 0.8, {})
 
 
 def extract_parameters_from_query(query: str, intent: str) -> Dict[str, Any]:
@@ -399,16 +354,18 @@ class Orchestrator:
         """
         Route request to appropriate tool function.
         This calls the existing tool endpoints internally.
-        Note: This function should be called from within app.py context where
-        _gemini_generate and prompts are available.
+        Uses the unified LLM provider configured via environment variables.
         """
         # Import here to avoid circular imports
         # These imports work because route_to_tool is called from app.py
-        from app import _gemini_generate, memory_manager
+        from app import memory_manager
         from prompts import (
             quiz_prompt, lecture_content_prompt, ideas_prompt,
             admin_prompt, help_prompt, chat_prompt
         )
+        
+        # Get unified LLM provider
+        llm = get_llm_provider()
         
         # Get user's preferred tone
         tone_instruction = ""
@@ -433,7 +390,6 @@ class Orchestrator:
                 "count": parameters.get("count", 5)
             }
             # Call quiz endpoint logic
-            from app import _gemini_generate
             from prompts import quiz_prompt
             prompt = quiz_prompt(
                 request_data["topic"],
@@ -441,7 +397,7 @@ class Orchestrator:
                 request_data["count"],
                 request_data["type"]
             )
-            result = _gemini_generate(prompt, temperature=0.5, max_tokens=2048)
+            result = llm.chat(prompt, temperature=0.5, max_tokens=2048)
             return {"quiz": result}
         
         elif intent == "content_generation":
@@ -456,7 +412,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.5, max_tokens=3072)
+            result = llm.chat(prompt, temperature=0.5, max_tokens=3072)
             return {"content": result}
         
         elif intent == "flashcards":
@@ -465,7 +421,7 @@ class Orchestrator:
                 "task": "flashcards"
             }
             prompt = f"Create flashcards from this text:\n\n{request_data['text']}"
-            result = _gemini_generate(prompt, temperature=0.7)
+            result = llm.chat(prompt, temperature=0.7)
             return {"output": result, "task": "flashcards"}
         
         elif intent == "summarize":
@@ -477,7 +433,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.7)
+            result = llm.chat(prompt, temperature=0.7)
             return {"output": result, "task": "summarize"}
         
         elif intent == "explanation":
@@ -489,7 +445,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.7)
+            result = llm.chat(prompt, temperature=0.7)
             return {"output": result, "task": "explain"}
         
         elif intent == "project_ideas":
@@ -506,7 +462,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.6, max_tokens=2048)
+            result = llm.chat(prompt, temperature=0.6, max_tokens=2048)
             return {"ideas": result}
         
         elif intent == "admin_template":
@@ -517,7 +473,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.4, max_tokens=1024)
+            result = llm.chat(prompt, temperature=0.4, max_tokens=1024)
             return {"output": result}
         
         elif intent == "help":
@@ -528,7 +484,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.5, max_tokens=1024)
+            result = llm.chat(prompt, temperature=0.5, max_tokens=1024)
             return {"answer": result}
         
         elif intent == "grading":
@@ -543,7 +499,7 @@ class Orchestrator:
             # Add tone instruction if available
             if tone_instruction:
                 prompt = tone_instruction + prompt
-            result = _gemini_generate(prompt, temperature=0.7, max_tokens=2048)
+            result = llm.chat(prompt, temperature=0.7, max_tokens=2048)
             return {"response": result}
     
     def orchestrate(self, query: str, user_id: str, context: Optional[Dict] = None,

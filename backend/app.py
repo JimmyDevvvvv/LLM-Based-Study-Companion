@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import google.generativeai as genai
 from memory_manager import EducatorMemory
 from db_manager import DatabaseManager, FileConversationStore
 from auth_manager import AuthManager, require_auth, optional_auth
+from llm_provider import get_llm_provider, llm_chat
 import os
 import json
 from datetime import datetime
@@ -49,17 +49,10 @@ CORS(app, resources={
     }
 })
 
-# Configure Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    print("⚠️  WARNING: GEMINI_API_KEY not found!")
-else:
-    genai.configure(api_key=GEMINI_API_KEY)
-    print("✅ Gemini API configured")
-
-# Model configuration - using free tier compatible model
-# Available models: gemini-pro (free tier), gemini-1.5-pro, gemini-1.5-flash
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # Free tier compatible
+# Unified LLM provider will be initialized lazily on first use
+# Configured via environment variables: LLM_PROVIDER, LLM_MODEL, LLM_API_KEY
+# Provider is initialized when _llm_generate is first called
+llm = None
 
 # Configure Database
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -99,68 +92,26 @@ def before_request():
     request.environ['auth_manager'] = auth_manager
 
 
-def _gemini_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 2048) -> str:
-    """Call Gemini API and return response"""
+def _llm_generate(prompt: str, temperature: float = 0.6, max_tokens: int = 2048) -> str:
+    """Call unified LLM provider and return response"""
+    global llm
+    
+    # Lazy initialization
+    if llm is None:
+        try:
+            llm = get_llm_provider()
+        except Exception as e:
+            raise Exception(
+                f"LLM provider initialization failed: {str(e)}. "
+                f"Please check your LLM_PROVIDER, LLM_MODEL, and LLM_API_KEY environment variables."
+            )
+    
     try:
-        generation_config = {
-            "temperature": temperature,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": max_tokens,
-        }
-        
-        safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-        ]
-        
-        model = genai.GenerativeModel(
-            model_name=MODEL_NAME,
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
-        
-        response = model.generate_content(prompt)
-        
-        # Check for safety filter blocks before accessing response.text
-        if response.candidates and len(response.candidates) > 0:
-            candidate = response.candidates[0]
-            if hasattr(candidate, 'finish_reason') and candidate.finish_reason == 2:  # SAFETY
-                print("Warning: Response blocked by safety filter")
-                return "I apologize, but the response was blocked by content filters. Please try rephrasing your request."
-        
-        if response.text:
-            return response.text.strip()
-        else:
-            return "I apologize, but I couldn't generate a response. Please try rephrasing."
-            
+        return llm.chat(prompt, temperature=temperature, max_tokens=max_tokens)
     except Exception as e:
         error_str = str(e)
-        print(f"Gemini API Error: {error_str}")
-        
-        # Handle safety filter error (finish_reason 2)
-        if "finish_reason" in error_str.lower() or "requires the response to contain a valid" in error_str:
-            return "I apologize, but the response was blocked by content filters. Please try rephrasing your request."
-        
-        # Check if it's a quota error and provide user-friendly message
-        if "quota" in error_str.lower() or "429" in error_str:
-            raise Exception(
-                "API quota exceeded. The free tier limit has been reached. "
-                "Please try again later or upgrade your API plan. "
-                "Error details: API rate limit exceeded."
-            )
-        
-        # Check if model not found
-        if "not found" in error_str.lower() or "not supported" in error_str.lower() or "404" in error_str:
-            raise Exception(
-                f"AI model '{MODEL_NAME}' not found or not supported. "
-                "Please check your GEMINI_MODEL environment variable. "
-                f"Error: {error_str[:200]}"
-            )
-        
-        raise Exception(f"Failed to generate content: {error_str}")
+        print(f"LLM API Error: {error_str}")
+        raise
 
 
 def _extract_text_from_pdf(file_path: str) -> str:
@@ -312,7 +263,7 @@ def chat():
                 print(f"Memory error: {e}")
         
         prompt = chat_prompt(message, history)
-        response = _gemini_generate(prompt, temperature=0.7, max_tokens=2048)
+        response = _llm_generate(prompt, temperature=0.7, max_tokens=2048)
         
         return jsonify({"response": response})
     except Exception as e:
@@ -342,7 +293,7 @@ def generate():
     prompt = task_prompts.get(task, f"Summarize:\n\n{text}")
     
     try:
-        output = _gemini_generate(prompt, temperature=0.7)
+        output = _llm_generate(prompt, temperature=0.7)
         return jsonify({"output": output, "memory_summary": ""})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -363,7 +314,7 @@ def content_create():
 
     try:
         prompt = lecture_content_prompt(topic, difficulty)
-        output = _gemini_generate(prompt, temperature=0.5, max_tokens=3072)
+        output = _llm_generate(prompt, temperature=0.5, max_tokens=3072)
         return jsonify({"content": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -378,7 +329,7 @@ def content_slide():
         return jsonify({"error": "No content provided"}), 400
     try:
         prompt = slide_content_prompt(content)
-        output = _gemini_generate(prompt, temperature=0.5, max_tokens=2048)
+        output = _llm_generate(prompt, temperature=0.5, max_tokens=2048)
         return jsonify({"slides": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -398,7 +349,7 @@ def content_adjust():
     
     try:
         prompt = adjust_content_prompt(text, action)
-        output = _gemini_generate(prompt, temperature=0.4, max_tokens=2048)
+        output = _llm_generate(prompt, temperature=0.4, max_tokens=2048)
         return jsonify({"content": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -443,7 +394,7 @@ def grade():
     
     try:
         prompt = grading_prompt(question, answer, is_code)
-        raw = _gemini_generate(prompt, temperature=0.2, max_tokens=1024)
+        raw = _llm_generate(prompt, temperature=0.2, max_tokens=1024)
 
         parsed = {}
         try:
@@ -488,7 +439,7 @@ def quiz():
 
     try:
         prompt = quiz_prompt(topic, difficulty, num_questions, qtype)
-        output = _gemini_generate(prompt, temperature=0.5, max_tokens=2048)
+        output = _llm_generate(prompt, temperature=0.5, max_tokens=2048)
         return jsonify({"quiz": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -716,7 +667,7 @@ def admin_template():
     
     try:
         prompt = admin_prompt(template, variables)
-        output = _gemini_generate(prompt, temperature=0.4, max_tokens=1024)
+        output = _llm_generate(prompt, temperature=0.4, max_tokens=1024)
         return jsonify({"output": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -735,7 +686,7 @@ def ideas():
     
     try:
         prompt = ideas_prompt(topic, level, variations)
-        output = _gemini_generate(prompt, temperature=0.6, max_tokens=2048)
+        output = _llm_generate(prompt, temperature=0.6, max_tokens=2048)
         return jsonify({"ideas": output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -752,7 +703,7 @@ def help_chat():
     
     try:
         prompt = help_prompt(question)
-        answer = _gemini_generate(prompt, temperature=0.5, max_tokens=1024)
+        answer = _llm_generate(prompt, temperature=0.5, max_tokens=1024)
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

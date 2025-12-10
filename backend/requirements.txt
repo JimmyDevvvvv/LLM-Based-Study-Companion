@@ -1,6 +1,7 @@
 flask
 flask-cors
 google-generativeai
+groq
 pymongo
 pyjwt
 bcrypt

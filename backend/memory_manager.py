@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-import google.generativeai as genai
+from llm_provider import get_llm_provider
 from typing import Dict, List, Optional
 import re
 
@@ -105,36 +105,9 @@ Teacher's message: "{message}"
 Respond with ONLY valid JSON, no explanation or additional text:"""
 
         try:
-            # Safety settings for educational content - less strict filters
-            safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-            ]
-            
-            # Use Gemini API for extraction - get model from env or use default
-            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-            model = genai.GenerativeModel(
-                model_name,
-                safety_settings=safety_settings
-            )
-            response = model.generate_content(
-                extraction_prompt,
-                generation_config={
-                    "temperature": 0.2,
-                    "max_output_tokens": 1024,
-                }
-            )
-            
-            # Check for safety filter blocks
-            if response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                if hasattr(candidate, 'finish_reason') and candidate.finish_reason == 2:  # SAFETY
-                    print("Warning: Response blocked by safety filter in memory extraction")
-                    return {}
-            
-            output = response.text.strip()
+            # Use unified LLM provider
+            llm = get_llm_provider()
+            output = llm.chat(extraction_prompt, temperature=0.2, max_tokens=1024)
             
             # Extract JSON from response (handle cases where model adds text)
             json_match = re.search(r'\{.*\}', output, re.DOTALL)
